@@ -33,7 +33,7 @@ eyed3.log.setLevel("ERROR")
 def graph_spectrogram(wav_file, savePath):  
   pydub.AudioSegment.from_mp3(wav_file).export(wav_file + '.wav', format="wav")
   rate, data = get_wav_info(wav_file + '.wav')
-  nfft = 256 # Length of the windowing segments
+  nfft = 256 # Length of the windowing segments {2^log10(len(data))?}
   fs = rate  # Sampling frequency
   pxx, freqs, bins, im = plt.specgram(data, nfft, fs, cmap='hot')  
   plt.axis('off')
