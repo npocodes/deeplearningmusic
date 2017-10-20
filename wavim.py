@@ -12,7 +12,7 @@
 #######################################################################################
 import matplotlib.pyplot as plt
 from scipy.io import wavfile #wavfile tools
-import pydub #audio conversions
+import pydub #audio conversions (requires FFmpeg {apt-get})
 import eyed3 #ID3 tag reading
 import numpy as np
 from shutil import copyfile #copyfile(src, dst)
@@ -119,7 +119,7 @@ for item in items:
     graph_spectrogram(audiopath + '/' + item, 'wavim/spectrogram/' + genreStr +'/' + item)
 
     #Copy or Move the audio file? Move will save space!
-    move(audiopath + '/' + item + '.wav', 'wavim/audio/' + genreStr + '/' + item)
-    #copyfile(audiopath + '/' + item + '.wav', 'wavim/audio/' + genreStr +'/' + item)
+    move(audiopath + '/' + item + '.wav', 'wavim/audio/' + genreStr + '/' + item + '.wav')
+    #copyfile(audiopath + '/' + item + '.wav', 'wavim/audio/' + genreStr +'/' + item + '.wav')
 
 #EOP
