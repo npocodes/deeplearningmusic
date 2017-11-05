@@ -84,26 +84,32 @@ def audSearch(dirp):
       #alternatively if using python3 there is PyTag
       track = eyed3.load(audPath) #read the audio files meta data
       genre = str(track.tag.genre) #get the genre tag
-      genre = genre.replace(' ', '_').replace('/', '-')
+      genre = genre.replace(' ', '_').replace('/', '-').replace(',', '-')
       print 'Found genre: ' + genre
       #sys.exit()
 
+      #To avoid running of memory with the recursion
+      #we need to remove the conversion functions
+      #instead we'll create an array of tuples holding
+      #0-the path to the audio file and 1- the genre name
+      #The image conversion functions will use the array
+      #in a simple loop.
+      Fg.append([audPath, genre])
+
       #Create dir structures
       doDirs(genre)      
-      
-      #Convert to spectrogram?
-      if Spect == True:
-        doSpect(audPath, genre)
-
-      #Convert to audmage?
-      #if Audmage == True:
-      #  doAudmage(audPath, genre)
       
       #Sorting the audio files?
       if Audio == True:
         #Just move the audio file into the proper genre
         #directory. it should already exist now...
         move(audPath, "sorted/audio/"+ genre +"/"+ audFullName)
+        
+        #Since the audio was moved, use the new location
+        Fg.append(["sorted/audio/"+ genre +"/"+ audFullName, genre])
+      else:
+        #Audio is in original location
+        Fg.append([audPath, genre])
 
   return True
 #End audsearch function
@@ -183,41 +189,44 @@ def doDirs(genre):
 ###################################
 # Creating the Spectrogram Images #
 ###################################
-def doSpect(audFilePath, genre):
-  #audFilePath = path to the audio file
-  
-  #Get the file name minus all the path data.
-  tmp = audFilePath.split("/") #Split the path str into array
-  tmp2 = tmp[-1].split(".") #split the last element into array
-  audFileName = tmp2[0] #name of the file ('fileName')
-  audExt = tmp2[1] #the ext of the file ('mp3')
-  
-  #Verify the file exists and is accessible
-  if not os.path.isfile(audFilePath):
-    #File doesn't exist or isn't accessible.
-    print 'File: '+ tmp[-1] +' does not exist or is not accessible\n'
-  
-  else:
-    #Begin creating the spectrogram image
-    #taken from Joe's conversion script for librosa
-    data, sr = rosa.load(audFilePath, sr=None, mono=True) #mono(1channel)?
+def doSpect(Fg):
+  print 'Attempting to generate Spectrograms...\n'
+  n=0
+  for audFilePath,genre in Fg:
+    #Get the file name minus all the path data.
+    tmp = audFilePath.split("/") #Split the path str into array
+    tmp2 = tmp[-1].split(".") #split the last element into array
+    audFileName = tmp2[0] #name of the file ('fileName')
+    audExt = tmp2[1] #the ext of the file ('mp3')
     
-    stft = np.abs(rosa.stft(data, n_fft=2048, hop_length=512))
-    mel = rosa.feature.melspectrogram(sr=sr, S=stft**2)
-    log_mel = rosa.logamplitude(mel)
+    #Verify the file exists and is accessible
+    if not os.path.isfile(audFilePath):
+      #File doesn't exist or isn't accessible.
+      print 'File: '+ tmp[-1] +' does not exist or is not accessible\n'
     
-    #display the image? or create? or both?
-    rosa.display.specshow(log_mel, sr=sr, hop_length=512, x_axis='time', y_axis='mel')
-    plt.axis("off")
+    else:
+      #Begin creating the spectrogram image
+      #taken from Joe's conversion script for librosa
+      data, sr = rosa.load(audFilePath, sr=None, mono=True) #mono(1channel)?
+      
+      stft = np.abs(rosa.stft(data, n_fft=2048, hop_length=512))
+      mel = rosa.feature.melspectrogram(sr=sr, S=stft**2)
+      log_mel = rosa.logamplitude(mel)
+      
+      #display the image? or create? or both?
+      rosa.display.specshow(log_mel, sr=sr, hop_length=512, x_axis='time', y_axis='mel')
+      plt.axis("off")
 
-    #Save the plotted figure (image) using "SortedVersion" dir structure
-    #the image can/will be copied later into a "DataVersion" dir set.
-    savePath = 'sorted/spect/'+ genre +'/'+ audFileName + '.png'
-    plt.savefig(savePath, dpi=100, frameon='false', bbox_inches="tight", pad_inches=0)
-  
-  #print 'Finished round of doSpect!\n'
-  #sys.exit()
-
+      #Save the plotted figure (image) using "SortedVersion" dir structure
+      #the image can/will be copied later into a "DataVersion" dir set.
+      savePath = 'sorted/spect/'+ genre +'/'+ audFileName + '.png'
+      plt.savefig(savePath, dpi=100, frameon='false', bbox_inches="tight", pad_inches=0)
+    
+    #print 'Finished round of doSpect!\n'
+    #sys.exit()
+    n += 1
+    print 'Finished spectrogram('+ str(n) +'): '+ savePath
+  #End doSpect Loop
   return True
 #End doSpect function
 
@@ -226,67 +235,67 @@ def doSpect(audFilePath, genre):
 #       (not spectrograms)       #
 ##################################
 # !! NOT CURRENTLY WORKING
-def doAudmage(audFilePath, genre):
-  #audFilePath = path to the audio file
-  
-  #Get the file name minus all the path data.
-  tmp = audFilePath.split("/") #Split the path str into array
-  tmp2 = tmp[-1].split(".") #split the last element into array
-  audFileName = tmp2[0] #name of the file ('fileName')
-  audExt = tmp2[1] #the ext of the file ('mp3')
+def doAudmage(Fg):
 
-  #Now we need to read the audio data
-  #and convert it into a format that is readable by
-  #the convultional neural networks (image like)
-  data, sr = rosa.load(audFilePath, mono=False)
+  for audFilePath,genre in Fg:
+    #Get the file name minus all the path data.
+    tmp = audFilePath.split("/") #Split the path str into array
+    tmp2 = tmp[-1].split(".") #split the last element into array
+    audFileName = tmp2[0] #name of the file ('fileName')
+    audExt = tmp2[1] #the ext of the file ('mp3')
 
-  #print len(data)
-  #print data.shape
-  #print data
-  #sys.exit()
-  
-  #data = array of channels and amplitudes (+/-)
-  #sr = audio sampling rate
+    #Now we need to read the audio data
+    #and convert it into a format that is readable by
+    #the convultional neural networks (image like)
+    data, sr = rosa.load(audFilePath, mono=False)
 
-  #Divide each data value by the sampling rate...
-  #We need a way to include the sampling rate and
-  #this way seems most obvious...
-  newdata = data/sr #numpy will divide by each value...
+    #print len(data)
+    #print data.shape
+    #print data
+    #sys.exit()
+    
+    #data = array of channels and amplitudes (+/-)
+    #sr = audio sampling rate
 
-  
-  #Get lowest value in new data array
-  lowValue = np.amin(newdata)
-  print 'lowvalue = ' + str(lowValue)
+    #Divide each data value by the sampling rate...
+    #We need a way to include the sampling rate and
+    #this way seems most obvious...
+    newdata = data/sr #numpy will divide by each value...
 
-  #If lowest value is negative...
-  if lowValue < 0:
-    #convert to positive and add to every value
-    #making all values positive.
-    newdata += (lowValue * (-1))*(10**7)
-  
-  print newdata
-  newdata = newdata.astype(int)
-  print newdata
-  newdata = np.resize(newdata, (1152,1152))
-  print newdata.shape
-  print newdata
-  
-  im = Image.fromarray(np.uint8(newdata))
-  im.show()
-  #At this point we have averaged all values by the samplng rate
-  #and "normalized" the resulting values to a positive scale.
-  #All the values can now be treated as pixel values
-  #imshow(newdata)
-  sys.exit()
+    
+    #Get lowest value in new data array
+    lowValue = np.amin(newdata)
+    print 'lowvalue = ' + str(lowValue)
 
-  #Saving as an image lets us store the changes to the numpy matrix
-  #for later use, but this can be done on-the-fly without the image conversion.
-  #by just "normalizing/scaling" the data values with the sampling rate etc...
-  imsave('sorted/audmages/'+ genre +'/'+ audFileName +'.png', newdata)
-  
-  #print 'Finished round of doAudmage!\n'
-  #sys.exit()
+    #If lowest value is negative...
+    if lowValue < 0:
+      #convert to positive and add to every value
+      #making all values positive.
+      newdata += (lowValue * (-1))*(10**7)
+    
+    print newdata
+    newdata = newdata.astype(int)
+    print newdata
+    newdata = np.resize(newdata, (1152,1152))
+    print newdata.shape
+    print newdata
+    
+    im = Image.fromarray(np.uint8(newdata))
+    im.show()
+    #At this point we have averaged all values by the samplng rate
+    #and "normalized" the resulting values to a positive scale.
+    #All the values can now be treated as pixel values
+    #imshow(newdata)
+    sys.exit()
 
+    #Saving as an image lets us store the changes to the numpy matrix
+    #for later use, but this can be done on-the-fly without the image conversion.
+    #by just "normalizing/scaling" the data values with the sampling rate etc...
+    imsave('sorted/audmages/'+ genre +'/'+ audFileName +'.png', newdata)
+    
+    #print 'Finished round of doAudmage!\n'
+    #sys.exit()
+  #End doAudmage loop
   return True
 #End doAudmage function
 
@@ -365,6 +374,9 @@ Spect = False
 Audmage = False
 DataF = False
 
+#Array of audio file paths and genres
+Fg = []
+
 #Do we have any commandline arguments?
 if len(sys.argv) > 1:
 
@@ -404,8 +416,18 @@ if len(sys.argv) > 1:
   if audSearch(sys.argv[1]):
     print 'Audio collection was sorted successfully!'
     
+    #Convert to spectrogram?
+    if Spect == True:
+      doSpect(Fg)
+
+    #Convert to audmage?
+    #if Audmage == True:
+    #  doAudmage(Fg)
+
     #5 - Generate a dataset? Must have created image files first!!
     if DataF:    
+      #this check should be updated to look for dir struct. avoids
+      #having to do conversion and create dataset at same time
       if Spect or Audmage:
         print 'Generating dataset from sorted collection...\n'
         if generateSet(.8, .1, .1):
