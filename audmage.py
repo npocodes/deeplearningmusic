@@ -68,7 +68,7 @@ def audSearch(dirp):
       #lets begin...
       audPath = dirp
       
-      print 'Found audio file: ' + audPath
+      #print 'Found audio file: ' + audPath
       #sys.exit()
 
       #Get the file name minus all the path data.
@@ -83,9 +83,14 @@ def audSearch(dirp):
       #For simplicity sake at the moment i'm choosing to use eyed3
       #alternatively if using python3 there is PyTag
       track = eyed3.load(audPath) #read the audio files meta data
+
+      #Suppress warnings from eyed3 about standards
+      #when we are trying to read the file's ID3 data
+      eyed3.log.setLevel("ERROR")
+
       genre = str(track.tag.genre) #get the genre tag
       genre = genre.replace(' ', '_').replace('/', '-').replace(',', '-')
-      print 'Found genre: ' + genre
+      #print 'Found genre: ' + genre
       #sys.exit()
 
       #To avoid running of memory with the recursion
@@ -214,19 +219,21 @@ def doSpect(Fg):
       log_mel = rosa.logamplitude(mel)
       
       #display the image? or create? or both?
-      rosa.display.specshow(log_mel, sr=sr, hop_length=512, x_axis='time', y_axis='mel')
-      plt.axis("off")
+      rosa.display.specshow(log_mel, sr=sr, hop_length=512)
+      plt.axis("normal")
+      plt.margins(0,0)
+      plt.gca().xaxis.set_major_locator(plt.NullLocator())
+      plt.gca().yaxis.set_major_locator(plt.NullLocator())
 
       #Save the plotted figure (image) using "SortedVersion" dir structure
       #the image can/will be copied later into a "DataVersion" dir set.
       savePath = 'sorted/spect/'+ genre +'/'+ audFileName + '.png'
-      plt.savefig(savePath, dpi=100, frameon='false', bbox_inches="tight", pad_inches=0)
-    
-    #print 'Finished round of doSpect!\n'
-    #sys.exit()
+      plt.savefig(savePath, dpi=100, frameon='false', bbox_inches="tight", pad_inches=0.0)
+      
+
     n += 1
     print 'Finished spectrogram('+ str(n) +'): '+ savePath
-
+    #sys.exit()
   #End doSpect Loop
   return True
 #End doSpect function
@@ -414,8 +421,16 @@ if len(sys.argv) > 1:
   #sys.exit()
 
   #4 - Let's begin
+  if Audio:
+    print 'Attempting to sort audio files into genres...'
+  else:
+    print 'Gathering Audio file locations and genres...'
+
   if audSearch(sys.argv[1]):
-    print 'Audio collection was sorted successfully!'
+    if Audio:
+      print 'Audio collection was sorted successfully!'
+    else:
+      print 'Successfully gathered audio file locations and genres!'
     
     #Convert to spectrogram?
     if Spect == True:
