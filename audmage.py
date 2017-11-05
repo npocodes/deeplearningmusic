@@ -94,7 +94,7 @@ def audSearch(dirp):
       #0-the path to the audio file and 1- the genre name
       #The image conversion functions will use the array
       #in a simple loop.
-      Fg.append([audPath, genre])
+      #Fg.append([audPath, genre])
 
       #Create dir structures
       doDirs(genre)      
@@ -226,6 +226,9 @@ def doSpect(Fg):
     #sys.exit()
     n += 1
     print 'Finished spectrogram('+ str(n) +'): '+ savePath
+    
+    if n == 2:    
+      sys.exit()
   #End doSpect Loop
   return True
 #End doSpect function
