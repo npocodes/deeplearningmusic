@@ -226,9 +226,7 @@ def doSpect(Fg):
     #sys.exit()
     n += 1
     print 'Finished spectrogram('+ str(n) +'): '+ savePath
-    
-    if n == 2:    
-      sys.exit()
+
   #End doSpect Loop
   return True
 #End doSpect function
