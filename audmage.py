@@ -21,7 +21,7 @@
 # Command inputs: 
 #   1-<path to data>
 #   2-True/False(create dataset)
-#   3-options{audio, spect, audmage}(0 or more options)
+#   3-options{audio, spect, audmage, retag}(0 or more options)
 #
 # ex: ~$ python audmage.py data/music-collection False audio
 # only sorts audio by genre, no spectrograms, no audmages 
@@ -47,7 +47,7 @@ from random import shuffle #randomize the dataset selections
 from PIL import Image
 
 ##################################################
-# RECURSIVE DIRECTORY SEARCH AND CONVERSION LOOP #
+# RECURSIVE AUDIO DIRECTORY SEARCH AND SORT LOOP #
 ##################################################
 def audSearch(dirp):
   #dirp = directory path
@@ -77,29 +77,48 @@ def audSearch(dirp):
       audFullName = tmp[-1] #full file name ('filename.mp3')      
       audFileName = tmp2[0] #name of the file ('fileName')
       audExt = tmp2[1] #the ext of the file ('mp3')
-  
-      #First lets try to read the audio file meta-data
-      #I tried using pytaglib but it won't install without installing TagLib(C++)
-      #For simplicity sake at the moment i'm choosing to use eyed3
-      #alternatively if using python3 there is PyTag
-      track = eyed3.load(audPath) #read the audio files meta data
+      
+      #search for the genre in the meta tracks file
+      cgenre = ''
+      for row in meta:
+        if row[0] == audFileName:
+          cgenre = row[40]
+          break;
 
-      #Suppress warnings from eyed3 about standards
-      #when we are trying to read the file's ID3 data
-      eyed3.log.setLevel("ERROR")
-
-      genre = str(track.tag.genre) #get the genre tag
-      genre = genre.replace(' ', '_').replace('/', '-').replace(',', '-')
-      #print 'Found genre: ' + genre
+      #If we couldn't find the genre data 
+      #try reading it from file
+      if cgenre == '' or ReTag:
+        #read the audio files meta data
+        track = eyed3.load(audPath) 
+        
+        #Suppress warnings from eyed3 about standards
+        #when we are trying to read the file's ID3 data
+        eyed3.log.setLevel("ERROR")
+        
+        tmpg = str(track.tag.genre) #get the genre tag from file
+        tmpg = tmpg.replace(' ', '_').replace('/', '-').replace(',', '-')
+        
+        #Should we ReTag the audio file with the right genre?
+        if Retag:
+          if not cgenre == tmpg and cgenre == '':
+            if cgenre == '':
+              #use file genre data
+              genre = tmpg
+            else:
+              #use csv genre data
+              genre = cgenre
+              
+              #Retag the audio file
+              print genre +' != '+ tmpg
+              track.tag.genre = u''+ str(genre)
+              track.tag.save(audPath)
+              print 'Genre changed to match csv file data: '+ fpath
+      else:
+        #Not ReTagging or found genre from csv...
+        genre = cgenre
+      
+      print 'Found genre: ' + genre
       #sys.exit()
-
-      #To avoid running of memory with the recursion
-      #we need to remove the conversion functions
-      #instead we'll create an array of tuples holding
-      #0-the path to the audio file and 1- the genre name
-      #The image conversion functions will use the array
-      #in a simple loop.
-      #Fg.append([audPath, genre])
 
       #Create dir structures
       doDirs(genre)      
@@ -132,9 +151,6 @@ def doDirs(genre):
   if DataF:
     if not os.path.isdir("dataset"):
       os.mkdir("dataset")
-  
-  #print 'Created root directories'
-  #sys.exit()
 
   #Check first to see if dir is needed
   if Audio:
@@ -184,9 +200,6 @@ def doDirs(genre):
       if not os.path.isdir("dataset/audmage/validate"):
         os.mkdir("dataset/audmage/validate")
 
-  #print 'Finished round of doDirs!\n'
-  #sys.exit()
-
   return True
 #End doDirs function
 
@@ -230,7 +243,6 @@ def doSpect(Fg):
       savePath = 'sorted/spect/'+ genre +'/'+ audFileName + '.png'
       plt.savefig(savePath, dpi=100, frameon='false', bbox_inches="tight", pad_inches=0.0)
       
-
     n += 1
     print 'Finished spectrogram('+ str(n) +'): '+ savePath
     #sys.exit()
@@ -316,13 +328,17 @@ def generateSet(p1,p2,p3):
     if not (p1+p2+p3)/100 == 1:
       #the data split percentages don't equal 100%..
       print "The data split percentages must equal 1"
+      sys.exit()
   
   #which items are we creating a dataset for?
   #not audio files because dataset uses images
-  if Spect:
+  if Spect and os.path.isdir('sorted/spect'):
     item = 'spect'
-  else:
+  elif Audmage and os.path.isdir('sorted/audmage'):
     item = 'audmage'
+  else:
+    print 'No image set was chosen'
+    sys.exit()
 
   genres = os.listdir('sorted/'+ item) #list of genres
   gCount = [] #total images for each genre
@@ -377,13 +393,23 @@ def generateSet(p1,p2,p3):
 print "\n### Audmage - Audio collection genre sorter ###\n"
 
 #option flags default values
-Audio = False
-Spect = False
-Audmage = False
-DataF = False
+Audio = False #Flag to sort the audio files by genre
+Spect = False #Flag to create and sort spectrograms by genre
+Audmage = False #Flag to create and sort audmages by genre
+DataF = False #Flag to create a dataset from sorted images
+ReTag = False #Flag to modify incorrect genre tags in audiofiles
+              #(Based on tracks.csv metadata file data)
 
 #Array of audio file paths and genres
 Fg = []
+
+#open and read the tracks csv file
+try:
+  ifile = open("fma_metadata/tracks.csv")
+  meta = csv.reader(ifile)
+except IOError:
+  print 'Unable to open '+ metapath + '/tracks.csv'
+  sys.exit()
 
 #Do we have any commandline arguments?
 if len(sys.argv) > 1:
@@ -403,29 +429,31 @@ if len(sys.argv) > 1:
     #split up command arguments taking all arguments after aug 1
     #and loop through each option to check which it is.
     for option in sys.argv[3:]:
-      if option == 'audio':
+      if option.lower() == 'audio':
         #User wants to sort the audio files
         Audio = True
-      elif option == 'spect' or option == 'spectrogram':
+      elif option.lower() == 'spect' or option == 'spectrogram':
         #User wants to create spectrogram images
         Spect = True
-      elif option == 'audmage':
+      elif option.lower() == 'audmage':
         #User wants to create audmages
         Audmage = False
+      elif option.lower() == 'retag':
+        #User wants to retag the audio files
+        ReTag = True
     #end option loop
   else:
-    #No extra options found, default is all three
-    Audio = Spect = True #Audmage = false for now
+    #No extra options found, default is all options
+    Audio = Spect = ReTag = True #Audmage = false for now
   
-  #print 'Finished arguments/options setup!\n'
-  #sys.exit()
-
+  #Finished setting up options
   #4 - Let's begin
   if Audio:
     print 'Attempting to sort audio files into genres...'
   else:
     print 'Gathering Audio file locations and genres...'
 
+  #Begin the audio file search/sort
   if audSearch(sys.argv[1]):
     if Audio:
       print 'Audio collection was sorted successfully!'
@@ -440,11 +468,10 @@ if len(sys.argv) > 1:
     #if Audmage == True:
     #  doAudmage(Fg)
 
-    #5 - Generate a dataset? Must have created image files first!!
-    if DataF:    
-      #this check should be updated to look for dir struct. avoids
-      #having to do conversion and create dataset at same time
-      if Spect or Audmage:
+    #5 - Generate a dataset?
+    if DataF:
+      #Can't create a dataset unless there are images to use..
+      if os.path.isdir('sorted/spect') or os.path.isdir('sorted/audmage'):
         print 'Generating dataset from sorted collection...\n'
         if generateSet(.8, .1, .1):
           print 'Dataset has been generated successfully!\n'
