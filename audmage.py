@@ -1,36 +1,52 @@
-# This program will read audio collections meta-data, create spectrogram image files, 
-# and convert audio data into image like matrices that can be used in convultional neural
-# networks and save those matrices as images, "audmages". 3 directory structures will be 
-# created: 1-audio files, 2-spectrograms, 3-audmages.
+############################################################
+# Audmage - Sorts audio collections by genre
+#         - Creates and sorts spectrogram images by genre
+#         - Creates and sorts audmages by genre
+#         - Generates datasets for CNNs using sorted images
+#         - ReTags audio files with tracks.csv meta data
 #
-# Why audmages if spectrograms work in cnns? Spectrograms take alot longer to generate...
-# "audmages" may perform better in a runtime conversion situation(on-the-fly) and may
-# contain more unique identifying information than spectrograms do. (Maybe...)
+# Program is designed to work with the fma_small dataset
+# but could be used for any audio collection
+#
+# Author: github/npocodes and C490 Deep Learning Group
+#
+    #SortedVersion - this set is like the control set
+      #Audio/<genre>/<file>
+      #Spect/<genre>/<file>
+      #Audmage/<genre>/<file>
 
-      #SortedVersion - this set is like the control set
-        #Audio/<genre>/<file>
-        #Spect/<genre>/<file>
-        #Audmage/<genre>/<file>
-
-      #DataVersion - files are not sorted into genre 
-      #(the classifiaction program should do that, if it can!)
-        # -No audio version...
-        #Spect/{train, test, validate}/<randomGenreMusicFile>
-        #Audmage/{train, test, validate}/<randomGenreMusicFile>
+    #DataVersion - files are not sorted into genre 
+    #(the classifiaction program should do that, if it can!)
+      # -No audio version...
+      #Spect/{train, test, validate}/<randomGenreMusicFile>
+      #Audmage/{train, test, validate}/<randomGenreMusicFile>
 
 # Command inputs: 
-#   1-<path to data>
-#   2-True/False(create dataset)
-#   3-options{audio, spect, audmage, retag}(0 or more options)
+#   1-  <path to data> : audioDir or imgDir (if sorting images)
+#   2+- options{audio, spect, audmage, create, dataset, retag}
+#              (0 or more options)
 #
-# ex: ~$ python audmage.py data/music-collection False audio
-# only sorts audio by genre, no spectrograms, no audmages 
+# [Usage Examples]
+# ex: ~$ python audmage.py data/music-collection audio
+# 
+# only sorts audio by genre, no spectrograms, no audmages, 
+# no dataset, no retag 
 #
-# ex2: ~$ python audmage.py data/music-collection True audmages
-# only sorts/creates audmages and makes a dataset of audmages
 #
-# ex3: ~$ python audmage.py data/music-colection
-# default, creates/sorts audio,spectrograms, and audmages, no dataset created
+# ex2: ~$ python audmage.py data/spect  spect
+# 
+# only sorts spectrograms by genre, notice dir path now for images!
+#
+#
+# ex3: ~$ python audmage.py data/music-collection  spect create dataset
+#
+# creates spectrogram images and sorts them, then uses 
+# them to create dataset
+#
+# ex4: ~$ python audmage.py data/music-collection
+# default, no options does all options!
+#
+#############################################################
 
 #Import required libs
 import eyed3 #to read audio meta-tags
@@ -44,52 +60,51 @@ import matplotlib.pyplot as plt #for access to the pyplot module
 from shutil import move #move(src, dst)
 from shutil import copyfile #copyfile(src, dst)
 from random import shuffle #randomize the dataset selections
-from PIL import Image
+import csv
 
-##################################################
-# RECURSIVE AUDIO DIRECTORY SEARCH AND SORT LOOP #
-##################################################
-def audSearch(dirp):
-  #dirp = directory path
-  if os.path.isdir(dirp):
-    #get list of items in this dir
-    items = os.listdir(dirp)
-    #run each item through this function
+#############################################
+# RECURSIVE AUDIO DIRECTORY SEARCH AND SORT #
+#############################################
+def AudioSearch(audioPath):
+  if os.path.isdir(audioPath):
+    try:
+      items = os.listdir(audioPath)
+    except IOError:
+      print 'Failed to open '+ audioPath
+      return False
+    #Run dir again...
     for item in items:
-      #passing value as a path...
-      audSearch(dirp +'/'+ item)
-    #end items loop
+      AudioSearch(audioPath +'/'+ item)
   else:
-    #dirp was not a directory
-    #it must be a file! (or a symlink to a file...)
-    #check if it is an mp3 file...? (.mp3, .wav, etc..?)
-    if dirp[-4:] == '.mp3': #or dirp[-4:] == '.wav':
-      #dirp is probably an audio file
-      #lets begin...
-      audPath = dirp
-      
-      #print 'Found audio file: ' + audPath
+    #Found file...Make sure its mp3 file
+    #(can be updated later for more types)
+    if audioPath[-4:] == '.mp3':
+
+      print 'Found audio File: '+ audiopath
       #sys.exit()
 
       #Get the file name minus all the path data.
-      tmp = audPath.split("/") #Split the path str into array
+      tmp = audioPath.split("/") #Split the path str into array
       tmp2 = tmp[-1].split(".") #split the last element into array
       audFullName = tmp[-1] #full file name ('filename.mp3')      
       audFileName = tmp2[0] #name of the file ('fileName')
-      audExt = tmp2[1] #the ext of the file ('mp3')
+      if len(tmp2) > 1:
+        audExt = tmp2[1] #the ext of the file ('mp3')
       
       #search for the genre in the meta tracks file
       cgenre = ''
-      for row in meta:
-        if row[0] == audFileName:
-          cgenre = row[40]
+      for row in Meta:
+        if row[0] == str(int(audFileName)) and row[32] == 'small':
+          cgenre = str(row[40])
           break;
+      #End Meta Search
+      iFile.seek(0)#Return to beginning of file(readerObj)
 
       #If we couldn't find the genre data 
-      #try reading it from file
+      #try reading it from audio file
       if cgenre == '' or ReTag:
         #read the audio files meta data
-        track = eyed3.load(audPath) 
+        track = eyed3.load(audioPath) 
         
         #Suppress warnings from eyed3 about standards
         #when we are trying to read the file's ID3 data
@@ -111,8 +126,8 @@ def audSearch(dirp):
               #Retag the audio file
               print genre +' != '+ tmpg
               track.tag.genre = u''+ str(genre)
-              track.tag.save(audPath)
-              print 'Genre changed to match csv file data: '+ fpath
+              track.tag.save(audioPath)
+              print 'Genre changed to match csv file data: '+ audioPath
       else:
         #Not ReTagging or found genre from csv...
         genre = cgenre
@@ -127,16 +142,145 @@ def audSearch(dirp):
       if Audio == True:
         #Just move the audio file into the proper genre
         #directory. it should already exist now...
-        move(audPath, "sorted/audio/"+ genre +"/"+ audFullName)
+        move(audioPath, "sorted/audio/"+ genre +"/"+ audFullName)
         
         #Since the audio was moved, use the new location
         Fg.append(["sorted/audio/"+ genre +"/"+ audFullName, genre])
       else:
         #Audio is in original location
-        Fg.append([audPath, genre])
+        Fg.append([audioPath, genre])
 
   return True
-#End audsearch function
+#End Audio Sort Method
+
+#######################
+# IMAGE SORT Function #
+#######################
+def ImageSort(imgPath, switch = False):
+
+  #Figure out what we are dealing with (spect or audmage)
+  if switch == True:
+    itemLabel = 'Audmage'
+    itemName = 'audmage'
+  else:
+    itemLabel = 'Spectrogam'
+    itemName = 'spect'
+
+  #Recursively find images within directory given
+  if os.path.isdir(imgPath):
+    try:
+      items = os.listdir(imgPath)
+    except IOError:
+      print 'Unable to open image dir: '+ imgPath
+      return False
+    for item in items:
+      ImageSort(imgPath +'/'+ item)
+  else:
+    #Found file...Make sure its png file
+    #(can be updated later for more types)
+    if imgPath[-4:] == '.png':
+      print 'Found '+ itemLabel +': '+ imgPath
+      #sys.exit()
+
+      #Get the file name minus all the path data.
+      tmp = imgPath.split("/") #Split the path str into array
+      tmp2 = tmp[-1].split(".") #split the last element into array
+      imgFullName = tmp[-1] #full file name ('filename.png')      
+      imgFileName = tmp2[0] #name of the file ('fileName')
+      if len(tmp2) > 1:
+        imgExt = tmp2[1] #the ext of the file ('png')
+
+      #search for the genre in the meta tracks file
+      genre = ''
+      for row in Meta:
+        if row[0] == str(int(imgFileName)) and row[32] == 'small':
+          genre = str(row[40])
+          break;
+      #End Meta Search
+      iFile.seek(0)#Return to beginning of file(readerObj)
+
+      #Did we find the genre data?
+      if genre == '':
+        print 'Unable to locate genre: '+ imgPath +'\nSkipping...'
+        return False
+      else:
+        #Genre was located..
+        print 'Found genre: ' + genre
+
+        #Create dir structures
+        doDirs(genre)
+
+        #Finally move the file
+        nPath = 'sorted/'+ itemName +'/'+ genre +'/'+ imgFullName
+        try:
+          move(imgPath, nPath)
+        except IOError:
+          print 'Unable to move: '+ imgPath
+          print 'To new location: '+ nPath +'\nSkipping...'
+
+        print imgFullName +' moved to: '+ nPath
+
+  return True
+#End Image Sort Method
+
+###################################
+# Creating the Spectrogram Images #
+###################################
+def doSpect(Fg):
+  print 'Attempting to generate and sort Spectrograms...\n'
+  
+  n=0 #index counter
+  for audFilePath,genre in Fg:
+    #Get the file name minus all the path data.
+    tmp = audFilePath.split("/") #Split the path str into array
+    tmp2 = tmp[-1].split(".") #split the last element into array
+    audFileName = tmp2[0] #name of the file ('fileName')
+    audExt = tmp2[1] #the ext of the file ('mp3')
+    
+    #Verify the file exists and is accessible
+    if not os.path.isfile(audFilePath):
+      #File doesn't exist or isn't accessible.
+      print 'File: '+ tmp[-1] +' does not exist or is not accessible\n'
+    
+    else:
+      #Begin creating the spectrogram image
+      #taken from Joe's conversion script for librosa
+      #modified slightly for better image result
+      try:
+        data, sr = rosa.load(audFilePath, sr=None, mono=True) #mono(1channel)
+      except IOError:
+        print 'Unable to load: ' + audFilePath
+        n += 1 #increment index
+        continue #restart loop at next index, skip this file
+
+      stft = np.abs(rosa.stft(data, n_fft=2048, hop_length=512))
+      mel = rosa.feature.melspectrogram(sr=sr, S=stft**2)
+      log_mel = rosa.logamplitude(mel)
+        
+      #Create the spectrogram image
+      rosa.display.specshow(log_mel, sr=sr, hop_length=512)
+      plt.axis("normal") #axis limits auto scaled to make image sit well in plot box.
+      plt.margins(0,0) #remove margins
+      plt.gca().xaxis.set_major_locator(plt.NullLocator()) #remove x axis locator
+      plt.gca().yaxis.set_major_locator(plt.NullLocator()) #remove y axis locator
+
+      #Save the plotted figure (image) using "SortedVersion" dir structure
+      #the image can/will be copied later into a "DataVersion" dir set.
+      savePath = 'sorted/spect/'+ genre +'/'+ audFileName + '.png'
+      plt.savefig(savePath, dpi=100, frameon='false', bbox_inches="tight", pad_inches=0.0)
+        
+      n += 1 #Increment index
+      print 'Finished spectrogram('+ str(n) +'): '+ savePath
+      #sys.exit()
+          
+  #End doSpect Loop
+  return True
+#End Spectrogram Creation Method
+
+def doAudmage():
+  #Not currently Implemented
+  return True
+#End Audmage Creation Method
 
 #####################################
 # Creating the Directory Structures #
@@ -203,123 +347,6 @@ def doDirs(genre):
   return True
 #End doDirs function
 
-
-###################################
-# Creating the Spectrogram Images #
-###################################
-def doSpect(Fg):
-  print 'Attempting to generate Spectrograms...\n'
-  n=0
-  for audFilePath,genre in Fg:
-    #Get the file name minus all the path data.
-    tmp = audFilePath.split("/") #Split the path str into array
-    tmp2 = tmp[-1].split(".") #split the last element into array
-    audFileName = tmp2[0] #name of the file ('fileName')
-    audExt = tmp2[1] #the ext of the file ('mp3')
-    
-    #Verify the file exists and is accessible
-    if not os.path.isfile(audFilePath):
-      #File doesn't exist or isn't accessible.
-      print 'File: '+ tmp[-1] +' does not exist or is not accessible\n'
-    
-    else:
-      #Begin creating the spectrogram image
-      #taken from Joe's conversion script for librosa
-      data, sr = rosa.load(audFilePath, sr=None, mono=True) #mono(1channel)?
-      
-      stft = np.abs(rosa.stft(data, n_fft=2048, hop_length=512))
-      mel = rosa.feature.melspectrogram(sr=sr, S=stft**2)
-      log_mel = rosa.logamplitude(mel)
-      
-      #display the image? or create? or both?
-      rosa.display.specshow(log_mel, sr=sr, hop_length=512)
-      plt.axis("normal")
-      plt.margins(0,0)
-      plt.gca().xaxis.set_major_locator(plt.NullLocator())
-      plt.gca().yaxis.set_major_locator(plt.NullLocator())
-
-      #Save the plotted figure (image) using "SortedVersion" dir structure
-      #the image can/will be copied later into a "DataVersion" dir set.
-      savePath = 'sorted/spect/'+ genre +'/'+ audFileName + '.png'
-      plt.savefig(savePath, dpi=100, frameon='false', bbox_inches="tight", pad_inches=0.0)
-      
-    n += 1
-    print 'Finished spectrogram('+ str(n) +'): '+ savePath
-    #sys.exit()
-  #End doSpect Loop
-  return True
-#End doSpect function
-
-##################################
-# Create audio images "Audmages" #
-#       (not spectrograms)       #
-##################################
-# !! NOT CURRENTLY WORKING
-def doAudmage(Fg):
-
-  for audFilePath,genre in Fg:
-    #Get the file name minus all the path data.
-    tmp = audFilePath.split("/") #Split the path str into array
-    tmp2 = tmp[-1].split(".") #split the last element into array
-    audFileName = tmp2[0] #name of the file ('fileName')
-    audExt = tmp2[1] #the ext of the file ('mp3')
-
-    #Now we need to read the audio data
-    #and convert it into a format that is readable by
-    #the convultional neural networks (image like)
-    data, sr = rosa.load(audFilePath, mono=False)
-
-    #print len(data)
-    #print data.shape
-    #print data
-    #sys.exit()
-    
-    #data = array of channels and amplitudes (+/-)
-    #sr = audio sampling rate
-
-    #Divide each data value by the sampling rate...
-    #We need a way to include the sampling rate and
-    #this way seems most obvious...
-    newdata = data/sr #numpy will divide by each value...
-
-    
-    #Get lowest value in new data array
-    lowValue = np.amin(newdata)
-    print 'lowvalue = ' + str(lowValue)
-
-    #If lowest value is negative...
-    if lowValue < 0:
-      #convert to positive and add to every value
-      #making all values positive.
-      newdata += (lowValue * (-1))*(10**7)
-    
-    print newdata
-    newdata = newdata.astype(int)
-    print newdata
-    newdata = np.resize(newdata, (1152,1152))
-    print newdata.shape
-    print newdata
-    
-    im = Image.fromarray(np.uint8(newdata))
-    im.show()
-    #At this point we have averaged all values by the samplng rate
-    #and "normalized" the resulting values to a positive scale.
-    #All the values can now be treated as pixel values
-    #imshow(newdata)
-    sys.exit()
-
-    #Saving as an image lets us store the changes to the numpy matrix
-    #for later use, but this can be done on-the-fly without the image conversion.
-    #by just "normalizing/scaling" the data values with the sampling rate etc...
-    imsave('sorted/audmages/'+ genre +'/'+ audFileName +'.png', newdata)
-    
-    #print 'Finished round of doAudmage!\n'
-    #sys.exit()
-  #End doAudmage loop
-  return True
-#End doAudmage function
-
-
 ########################
 # Generate the dataset #
 ########################
@@ -332,54 +359,149 @@ def generateSet(p1,p2,p3):
   
   #which items are we creating a dataset for?
   #not audio files because dataset uses images
+  item = 'none'
   if Spect and os.path.isdir('sorted/spect'):
     item = 'spect'
   elif Audmage and os.path.isdir('sorted/audmage'):
     item = 'audmage'
   else:
-    print 'No image set was chosen'
+    print 'No image set was chosen or chosen set not found: sorted/'+ item
     sys.exit()
 
-  genres = os.listdir('sorted/'+ item) #list of genres
+  #Try to get a list of genres by reading dir names from a sorted directory
+  try:
+    genres = os.listdir('sorted/'+ item) #list of genres
+  except IOError:
+    print 'Unable to get list of genres from: sorted/'+ item
+    #Try opposite item if using and available...
+    if item == 'spect' and Audmage:
+      try:
+        genres = os.listdir('sorted/audmage')
+        item = 'audmage' #change item
+      except IOError:
+        print 'Unable to get list of genres from: sorted/audmage'
+        sys.exit()
+    elif item == 'audmage' and Spect:
+      try:
+        genres = os.listdir('sorted/spect')
+        item = 'spect'
+      except IOError:
+        print 'Unable to get list of genres from: sorted/audmage'
+        sys.exit()
+  #End exception
+
   gCount = [] #total images for each genre
   iTotal = 0 #total number of images among all genres
   for genre in genres:
-    tmpCount = len(os.listdir('sorted/'+ item +'/'+ genre)) #count of files listed within genre
+    try:
+      #count of files listed within genre
+      tmpCount = len(os.listdir('sorted/'+ item +'/'+ genre))
+    except IOError:
+      tmpCount = 0
+
     gCount.append(tmpCount) #save count for this genre
     iTotal += tmpCount #add this genre count to total
   
   #At this point "item" value matters.. both or one?
   i = 0
   while i < len(genres):
-    tracks = os.listdir('sorted/'+ item +'/'+ str(genres[i]))
-    shuffle(tracks) #mix up the tracks to scramble datasets each time
+    try:
+      tracks = os.listdir('sorted/'+ item +'/'+ str(genres[i]))
+    except IOError:
+      print 'Unable to get list of tracks from: sorted/'+ item +'/'+ str(genres[i])
+      i += 1 #Increment to next genre
+      continue #Skip rest of code, go to next genre
+
+    #shuffle(tracks) #mix up the tracks to scramble datasets each time
     
     #split up the tracks in this genre for each dataset item (train/test/validate)
     p1tracks = tracks[:int(gCount[i]*p1)] #only take p1 percent of these tracks
     p2tracks = tracks[int(gCount[i]*p1):int((gCount[i]*p1)+(gCount[i]*p2))] #take p2 percent of these tracks
     p3tracks = tracks[int((gCount[i]*p1)+(gCount[i]*p2)):] #all the rest... p3 percent of these tracks..
 
-    #copy the files to the dataset directories
+    #copy the p1 files to the dataset test directory
     for track in p1tracks:
-      copyfile('sorted/'+ item +'/'+ genres[i] +'/'+ track, 'dataset/'+ item +'/test/'+ track)
+      trackPath = 'sorted/'+ item +'/'+ genres[i] +'/'+ track 
+      newPath = 'dataset/'+ item +'/test/'+ track
+      try:
+        copyfile(trackPath, newPath)
+      except IOError:
+        print 'Unable to copy file: '+ trackPath
+        print 'To new location: '+ newPath +'\nskipping...'
+      
       if item == 'spect' and Audmage:
-        copyfile('sorted/audmage/'+ genres[i] +'/'+ track, 'dataset/audmage/test/'+ track)
-      if item == 'audmage' and Spect:
-        copyfile('sorted/spect/'+ genres[i] +'/'+ track, 'dataset/spect/test/'+ track)
-  
-    for track in p2tracks:
-      copyfile('sorted/'+ item +'/'+ genres[i] +'/'+ track, 'dataset/'+ item +'/train/'+ track)
-      if item == 'spect' and Audmage:
-        copyfile('sorted/audmage/'+ genres[i] +'/'+ track, 'dataset/audmage/train/'+ track)
-      if item == 'audmage' and Spect:
-        copyfile('sorted/spect/'+ genres[i] +'/'+ track, 'dataset/spect/train/'+ track)
+        trackPath = 'sorted/audmage/'+ genres[i] +'/'+ track
+        newPath = 'dataset/audmage/test/'+ track
+        try:
+          copyfile(trackPath, newPath)
+        except IOError:
+          print 'Unable to copy file: '+ trackPath
+          print 'To new location: '+ newPath +'\nskipping...'
 
-    for track in p3tracks:
-      copyfile('sorted/'+ item +'/'+ genres[i] +'/'+ track, 'dataset/'+ item +'/validate/'+ track)
-      if item == 'spect' and Audmage:
-        copyfile('sorted/audmage/'+ genres[i] +'/'+ track, 'dataset/audmage/validate/'+ track)
       if item == 'audmage' and Spect:
-        copyfile('sorted/spect/'+ genres[i] +'/'+ track, 'dataset/spect/validate/'+ track)
+        trackPath = 'sorted/spect/'+ genres[i] +'/'+ track 
+        newPath = 'dataset/spect/test/'+ track
+        try:
+          copyfile(trackPath, newPath)
+        except IOError:
+          print 'Unable to copy file: '+ trackPath
+          print 'To new location: '+ newPath +'\nskipping...'
+    
+    #copy the p2 files to the dataset train directory
+    for track in p2tracks:
+      trackPath = 'sorted/'+ item +'/'+ genres[i] +'/'+ track 
+      newPath = 'dataset/'+ item +'/train/'+ track
+      try:
+        copyfile(trackPath, newPath)
+      except IOError:
+        print 'Unable to copy file: '+ trackPath
+        print 'To new location: '+ newPath +'\nskipping...'
+      
+      if item == 'spect' and Audmage:
+        trackPath = 'sorted/audmage/'+ genres[i] +'/'+ track
+        newPath = 'dataset/audmage/train/'+ track
+        try:
+          copyfile(trackPath, newPath)
+        except IOError:
+          print 'Unable to copy file: '+ trackPath
+          print 'To new location: '+ newPath +'\nskipping...'
+
+      if item == 'audmage' and Spect:
+        trackPath = 'sorted/spect/'+ genres[i] +'/'+ track 
+        newPath = 'dataset/spect/train/'+ track
+        try:
+          copyfile(trackPath, newPath)
+        except IOError:
+          print 'Unable to copy file: '+ trackPath
+          print 'To new location: '+ newPath +'\nskipping...'
+
+    #copy the p3 files to the dataset validate directory
+    for track in p2tracks:
+      trackPath = 'sorted/'+ item +'/'+ genres[i] +'/'+ track 
+      newPath = 'dataset/'+ item +'/validate/'+ track
+      try:
+        copyfile(trackPath, newPath)
+      except IOError:
+        print 'Unable to copy file: '+ trackPath
+        print 'To new location: '+ newPath +'\nskipping...'
+      
+      if item == 'spect' and Audmage:
+        trackPath = 'sorted/audmage/'+ genres[i] +'/'+ track
+        newPath = 'dataset/audmage/validate/'+ track
+        try:
+          copyfile(trackPath, newPath)
+        except IOError:
+          print 'Unable to copy file: '+ trackPath
+          print 'To new location: '+ newPath +'\nskipping...'
+
+      if item == 'audmage' and Spect:
+        trackPath = 'sorted/spect/'+ genres[i] +'/'+ track 
+        newPath = 'dataset/spect/validate/'+ track
+        try:
+          copyfile(trackPath, newPath)
+        except IOError:
+          print 'Unable to copy file: '+ trackPath
+          print 'To new location: '+ newPath +'\nskipping...'
 
     i += 1 #increment genre index
   #End While Loop
@@ -387,30 +509,26 @@ def generateSet(p1,p2,p3):
   return True
 #End generateSet function
 
-###############################
-# Check for command arguments #
-###############################
-print "\n### Audmage - Audio collection genre sorter ###\n"
+#Setup Global values
+Audio = False #Audio sorting flag
+Spect = False #Spectrogram sorting flag
+Audmage = False #Audmage sorting flag
+DataF = False #Flag to generate a data set (Combine with Spect or Audmage flags)
+CreateF = False #Flag to create image data (Combine with Spect or Audmage flags)
+ReTag = False #Flag to retag audio files with csv genre data
 
-#option flags default values
-Audio = False #Flag to sort the audio files by genre
-Spect = False #Flag to create and sort spectrograms by genre
-Audmage = False #Flag to create and sort audmages by genre
-DataF = False #Flag to create a dataset from sorted images
-ReTag = False #Flag to modify incorrect genre tags in audiofiles
-              #(Based on tracks.csv metadata file data)
-
-#Array of audio file paths and genres
-Fg = []
+Fg = [] #List to hold audio file paths and matching genre in tuples [path, genre]
+Meta = [] #Will hold the csv data
 
 #open and read the tracks csv file
 try:
-  ifile = open("fma_metadata/tracks.csv")
-  meta = csv.reader(ifile)
+  iFile = open("fma_metadata/tracks.csv", "rb")
+  Meta = csv.reader(iFile)
 except IOError:
-  print 'Unable to open '+ metapath + '/tracks.csv'
+  print 'Unable to open: fma_metadata/tracks.csv'
   sys.exit()
 
+#Begin setting up options and inputs #
 #Do we have any commandline arguments?
 if len(sys.argv) > 1:
 
@@ -418,65 +536,93 @@ if len(sys.argv) > 1:
   if not os.path.isdir(sys.argv[1]) == True:
     print "Error, " + str(sys.argv[1]) +" is not a directory or doesn't exist\n"
     sys.exit()
-
-  #2 - True/False (Should a dataset be generated after processing?)
-  if len(sys.argv) > 2:
-    if sys.argv[2] == "True":
-      DataF = True
   
   #3+ - check for options
-  if len(sys.argv) > 3:
+  if len(sys.argv) > 2:
     #split up command arguments taking all arguments after aug 1
     #and loop through each option to check which it is.
-    for option in sys.argv[3:]:
+    for option in sys.argv[2:]:
       if option.lower() == 'audio':
         #User wants to sort the audio files
         Audio = True
       elif option.lower() == 'spect' or option == 'spectrogram':
-        #User wants to create spectrogram images
+        #User wants to create/sort spectrogram images
         Spect = True
       elif option.lower() == 'audmage':
-        #User wants to create audmages
-        Audmage = False
+        #User wants to create/sort audmages
+        Audmage = False #disabled
       elif option.lower() == 'retag':
         #User wants to retag the audio files
         ReTag = True
+      elif option.lower() == 'dataset':
+        #User wants to create a dataset if possible
+        DataF = True
+      elif option.lower() == 'create':
+        #User wants to create spects and/or audmages
+        CreateF = True
     #end option loop
   else:
-    #No extra options found, default is all options
-    Audio = Spect = ReTag = True #Audmage = false for now
+    #No options found, default is all options
+    Audio = Spect = DataF = ReTag = True #Audmage = false for now
   
   #Finished setting up options
-  #4 - Let's begin
-  if Audio:
-    print 'Attempting to sort audio files into genres...'
-  else:
-    print 'Gathering Audio file locations and genres...'
+  #Lets begin with image sorting
 
-  #Begin the audio file search/sort
-  if audSearch(sys.argv[1]):
-    if Audio:
-      print 'Audio collection was sorted successfully!'
-    else:
-      print 'Successfully gathered audio file locations and genres!'
-    
-    #Convert to spectrogram?
-    if Spect == True:
+  if Spect and not CreateF and not DataF:
+    #User has given spect command, this means we SORT spectrograms
+    #this also means that argv[1] is path to spectrogram directory not audio
+    ImageSort(sys.argv[1], False)
+    #At this point the spectrograms have been sorted by genre
+    print 'Audmages have been sorted successfully!'
+    print 'Please run again with dataset command to create dataset.'
+    if not Audmage:
+      sys.exit()#Close the program
+
+  if Audmage and not CreateF and not DataF:
+    #User has given audmage command, this means we SORT audmages
+    #this also means that argv[1] is path to audmage directory not audio
+    ImageSort(sys.argv[1], True)
+    #At this point the audmages have been sorted by genre
+    print 'Audmages have been sorted successfully!'
+    print 'Please run again with dataset command to create dataset.'
+    sys.exit()#Close the program
+
+### All the commands below require Audio search and so sys.argv[1] is audioPath
+###Except DataF it can be used either way
+
+  if Audio or ReTag:
+    #User wants to sort and/or ReTag audio files
+    AudioSearch(sys.argv[1])
+    #At this point we should have located all audio files(Fg ready)
+    #If Audio command given, files have also been sorted by genre.
+    #If ReTag command given, files have also been retagged.
+  
+  if CreateF:
+    #User wants to create and sort images, but what kind?
+    #First though we need to search for audio files to
+    #create images out of...if we haven't yet
+    if not Audio:
+      AudioSearch(sys.argv[1])
+      #At this point we have located all audio 
+      #files but not sorted them. (Fg ready)
+
+    if Spect:
+      #Create/sort spects, (requires Fg)
       doSpect(Fg)
 
-    #Convert to audmage?
-    #if Audmage == True:
-    #  doAudmage(Fg)
+    if Audmage:
+      #Create/sort audmages, (requires Fg)
+      doAudmage(Fg) #disabled
 
-    #5 - Generate a dataset?
-    if DataF:
-      #Can't create a dataset unless there are images to use..
-      if os.path.isdir('sorted/spect') or os.path.isdir('sorted/audmage'):
-        print 'Generating dataset from sorted collection...\n'
-        if generateSet(.8, .1, .1):
-          print 'Dataset has been generated successfully!\n'
-      else:
-        print 'Could not generate Dataset, no images were created!\n'
+  if DataF:
+    #User wants to generate a dataset, but which kind?
+    if Spect:
+      #Create Spect dataset
+      generateSet(.8,.1,.1)
+
+    if Audmage:
+      #Create Audmage dataset
+      generateSet(.8,.1,.1)
 else:
   #No command line arguments provided, need data collection path!
   print "Error, no path to audio files provided! \nExiting...\n"
