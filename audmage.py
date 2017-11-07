@@ -80,21 +80,21 @@ def AudioSearch(audioPath):
     #(can be updated later for more types)
     if audioPath[-4:] == '.mp3':
 
-      print 'Found audio File: '+ audiopath
+      print 'Found audio File: '+ audioPath
       #sys.exit()
 
       #Get the file name minus all the path data.
       tmp = audioPath.split("/") #Split the path str into array
       tmp2 = tmp[-1].split(".") #split the last element into array
       audFullName = tmp[-1] #full file name ('filename.mp3')      
-      audFileName = tmp2[0] #name of the file ('fileName')
+      audFileName = str(int(tmp2[0])) #name of the file ('fileName')
       if len(tmp2) > 1:
         audExt = tmp2[1] #the ext of the file ('mp3')
       
       #search for the genre in the meta tracks file
       cgenre = ''
       for row in Meta:
-        if row[0] == str(int(audFileName)) and row[32] == 'small':
+        if row[0] == audFileName and row[32] == 'small':
           cgenre = str(row[40])
           break;
       #End Meta Search
@@ -114,10 +114,12 @@ def AudioSearch(audioPath):
         tmpg = tmpg.replace(' ', '_').replace('/', '-').replace(',', '-')
         
         #Should we ReTag the audio file with the right genre?
-        if Retag:
-          if not cgenre == tmpg and cgenre == '':
+        if ReTag:
+          #Do they already match?
+          if not cgenre == tmpg:
+            #Did we not find a csv genre?
             if cgenre == '':
-              #use file genre data
+              #use file genre data, csv missing
               genre = tmpg
             else:
               #use csv genre data
@@ -132,7 +134,7 @@ def AudioSearch(audioPath):
         #Not ReTagging or found genre from csv...
         genre = cgenre
       
-      print 'Found genre: ' + genre
+      print 'Found genre: ' + genre +'\n'
       #sys.exit()
 
       #Create dir structures
@@ -163,7 +165,7 @@ def ImageSort(imgPath, switch = False):
     itemLabel = 'Audmage'
     itemName = 'audmage'
   else:
-    itemLabel = 'Spectrogam'
+    itemLabel = 'Spectrogram'
     itemName = 'spect'
 
   #Recursively find images within directory given
@@ -186,14 +188,14 @@ def ImageSort(imgPath, switch = False):
       tmp = imgPath.split("/") #Split the path str into array
       tmp2 = tmp[-1].split(".") #split the last element into array
       imgFullName = tmp[-1] #full file name ('filename.png')      
-      imgFileName = tmp2[0] #name of the file ('fileName')
+      imgFileName = str(int(tmp2[0])) #name of the file ('fileName')
       if len(tmp2) > 1:
         imgExt = tmp2[1] #the ext of the file ('png')
 
       #search for the genre in the meta tracks file
       genre = ''
       for row in Meta:
-        if row[0] == str(int(imgFileName)) and row[32] == 'small':
+        if row[0] == imgFileName and row[32] == 'small':
           genre = str(row[40])
           break;
       #End Meta Search
