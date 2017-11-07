@@ -91,14 +91,19 @@ def AudioSearch(audioPath):
       if len(tmp2) > 1:
         audExt = tmp2[1] #the ext of the file ('mp3')
       
-      #search for the genre in the meta tracks file
+      #Is there a tracks.txt file for genre data?
       cgenre = ''
-      for row in Meta:
-        if row[0] == audFileName and row[32] == 'small':
-          cgenre = str(row[40])
-          break;
-      #End Meta Search
-      iFile.seek(0)#Return to beginning of file(readerObj)
+      if len(MetaT) == 0:
+        #search for the genre in the tracks.csv file
+        for row in Meta:
+          if row[0] == audFileName and row[32] == 'small':
+            cgenre = str(row[40])
+            break;
+        iFile.seek(0)#Return to start of file(readerObj)
+        #End csv Meta Search
+      else:
+        #We have MetaT, faster than csv search...
+        cgenre = MetaT[audFileName]
 
       #If we couldn't find the genre data 
       #try reading it from audio file
@@ -144,8 +149,9 @@ def AudioSearch(audioPath):
       if Audio == True:
         #Just move the audio file into the proper genre
         #directory. it should already exist now...
-        move(audioPath, "sorted/audio/"+ genre +"/"+ audFullName)
-        
+        #move(audioPath, "sorted/audio/"+ genre +"/"+ audFullName)
+        copyfile(audioPath, "sorted/audio/"+ genre +"/"+ audFullName)
+
         #Since the audio was moved, use the new location
         Fg.append(["sorted/audio/"+ genre +"/"+ audFullName, genre])
       else:
@@ -191,15 +197,20 @@ def ImageSort(imgPath, switch = False):
       imgFileName = str(int(tmp2[0])) #name of the file ('fileName')
       if len(tmp2) > 1:
         imgExt = tmp2[1] #the ext of the file ('png')
-
-      #search for the genre in the meta tracks file
-      genre = ''
-      for row in Meta:
-        if row[0] == imgFileName and row[32] == 'small':
-          genre = str(row[40])
-          break;
-      #End Meta Search
-      iFile.seek(0)#Return to beginning of file(readerObj)
+      
+      #Is there a tracks.txt file for genre data?
+      if len(MetaT) == 0:
+        #search for the genre in the tracks.csv file
+        genre = ''
+        for row in Meta:
+          if row[0] == imgFileName and row[32] == 'small':
+            genre = str(row[40])
+            break;
+        #End Meta Search
+        iFile.seek(0)#Return to beginning of file(readerObj)
+      else:
+        #We have MetaT, faster than csv search...
+        genre = MetaT[imgFileName]
 
       #Did we find the genre data?
       if genre == '':
@@ -522,14 +533,26 @@ ReTag = False #Flag to retag audio files with csv genre data
 
 Fg = [] #List to hold audio file paths and matching genre in tuples [path, genre]
 Meta = [] #Will hold the csv data
+MetaT = {} #Will hold tracks.txt as dictionary
+#(shorter faster genre search)
+#tracks.txt made from metamatch.py script
 
-#open and read the tracks csv file
+#First try to find tracks.txt file
 try:
-  iFile = open("fma_metadata/tracks.csv", "rb")
-  Meta = csv.reader(iFile)
+  with open('tracks.txt', 'r') as f:
+    tmp = list(f.read().splitlines())
+  for row in tmp:
+    tmp2 = row.split(' ')
+    MetaT[tmp2[0]] = tmp2[1]
 except IOError:
-  print 'Unable to open: fma_metadata/tracks.csv'
-  sys.exit()
+  print 'Could not read tracks.txt'
+  #Try to open and read the tracks.csv file
+  try:
+    iFile = open("fma_metadata/tracks.csv", "rb")
+    Meta = csv.reader(iFile)
+  except IOError:
+    print 'Unable to open: fma_metadata/tracks.csv'
+    sys.exit()  
 
 #Begin setting up options and inputs #
 #Do we have any commandline arguments?
