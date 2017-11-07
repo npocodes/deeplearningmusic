@@ -268,6 +268,7 @@ def doSpect(Fg):
       #the image can/will be copied later into a "DataVersion" dir set.
       savePath = 'sorted/spect/'+ genre +'/'+ audFileName + '.png'
       plt.savefig(savePath, dpi=100, frameon='false', bbox_inches="tight", pad_inches=0.0)
+      plt.clf()#Clear the current figure (possibly helps with speed)
         
       n += 1 #Increment index
       print 'Finished spectrogram('+ str(n) +'): '+ savePath
