@@ -433,8 +433,14 @@ def generateSet(p1,p2,p3):
     p2tracks = tracks[int(gCount[i]*p1):int((gCount[i]*p1)+(gCount[i]*p2))] #take p2 percent of these tracks
     p3tracks = tracks[int((gCount[i]*p1)+(gCount[i]*p2)):] #all the rest... p3 percent of these tracks..
 
+    print 'There are '+ str(len(p1tracks)) +' '+ genres[i] +' tracks for test set.'
+    print 'There are '+ str(len(p2tracks)) +' '+ genres[i] +' tracks for train set.'
+    print 'There are '+ str(len(p3tracks)) +' '+ genres[i] +' tracks for validate set.'
+    print 'Sorting.. please wait..\n'
     #copy the p1 files to the dataset test directory
     for track in p1tracks:
+      doDirs(genres[i])#make sure the dir struct is in place
+      #print 'Test file: ' + track
       trackPath = 'sorted/'+ item +'/'+ genres[i] +'/'+ track 
       newPath = 'dataset/'+ item +'/test/'+ track
       try:
@@ -463,6 +469,7 @@ def generateSet(p1,p2,p3):
     
     #copy the p2 files to the dataset train directory
     for track in p2tracks:
+      #print 'Train file: ' + track
       trackPath = 'sorted/'+ item +'/'+ genres[i] +'/'+ track 
       newPath = 'dataset/'+ item +'/train/'+ track
       try:
@@ -491,6 +498,7 @@ def generateSet(p1,p2,p3):
 
     #copy the p3 files to the dataset validate directory
     for track in p2tracks:
+      #print 'Validate file: ' + track
       trackPath = 'sorted/'+ item +'/'+ genres[i] +'/'+ track 
       newPath = 'dataset/'+ item +'/validate/'+ track
       try:
@@ -519,7 +527,7 @@ def generateSet(p1,p2,p3):
 
     i += 1 #increment genre index
   #End While Loop
-  
+  print "Dataset generated using split:  80%-train | 10%-test | 10%-validation."
   return True
 #End generateSet function
 
