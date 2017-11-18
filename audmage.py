@@ -45,6 +45,8 @@
 #############################################################
 
 #Import required libs
+import matplotlib
+matplotlib.use('Agg')
 import os    #for file system tools
 import sys   #to read command-line arguments 
 import numpy as np #matrices and tools
@@ -282,9 +284,9 @@ def doSpect(trackL=None, saveDir=None):
       #User gave list of tracks to use.
       sTracks = trackL
   
-  print 'Attempting to generate and sort Spectrograms...\n'
+  print '\nAttempting to generate and sort Spectrograms...\n'
   s = 0 #Counter for spectrograms done
-  for fpath, genre in sTracks:
+  for fpath,genre in sTracks:
     #Split up the path string and get 
     #the file name and extension
     tmp = fpath.split('/')
@@ -300,43 +302,57 @@ def doSpect(trackL=None, saveDir=None):
     else:
       #Create Spectrogram (Modified from Joseph Kotva's Code)
       
-      #Try to load the audio file using librosa
-      try:
-        data, sr = librosa.load(fpath, mono=True) #mono(1channel)
-      except IOError:
-        print 'Unable to load: ' + fpath
-        #no s increment here because we didn't make the spectrogram!
-        continue #restart loop at next index, skip this file
-      
-      #Some calculations on the audio sample points
-      stft = np.abs(librosa.stft(data, n_fft=2048, hop_length=512))
-      mel = librosa.feature.melspectrogram(sr=sr, S=stft**2)
-      log_mel = librosa.logamplitude(mel)
-
-      #Create the spectrogram image
-      librosa.display.specshow(log_mel, sr=sr, hop_length=512)
-      plt.axis("normal") #axis limits auto scaled to make image sit well in plot box.
-      plt.margins(0,0) #remove margins
-      plt.gca().xaxis.set_major_locator(plt.NullLocator()) #remove x axis locator
-      plt.gca().yaxis.set_major_locator(plt.NullLocator()) #remove y axis locator
-
-      #Save the plotted figure (image) using "SortedVersion" dir structure
-      #the image can/will be copied later into a "DataVersion" dir set.
+      #Setup the save path
       if saveDir == None:
         savePath = 'sorted/spect/'+ genre +'/'+ fileName + '.png'
       else:
-        savePath = saveDir +'/'+ fileName + '.png'
+        savePath = saveDir +'/'+ fileName + '.png'      
 
-      plt.savefig(savePath, dpi=100, frameon='false', bbox_inches="tight", pad_inches=0.0)
-      plt.clf()#Clear the current figure (possibly helps with speed)
+      #Does the spectrogram already exist? Save time, skip it then
+      if not os.path.exists(savePath):
+        #Try to load the audio file using librosa
+        print 'Attempting to load: '+ fpath
+        try:
+          data, sr = librosa.load(fpath, mono=True) #mono(1channel)
+        except IOError:
+          print 'Unable to load: ' + fpath
+          #no s increment here because we didn't make the spectrogram!
+          continue #restart loop at next index, skip this file
+
+        #Was the audio file somehow loaded yet has no data points?
+        if data.size == 0:
+          print 'Unable to load: '+ fpath +'\nFile was opened but there was no data! Corrupted?\nSkipping...'
+          continue #restart loop at next index, skip this file
+
+        #Some calculations on the audio sample points
+        stft = np.abs(librosa.stft(data, n_fft=2048, hop_length=512))
+        mel = librosa.feature.melspectrogram(sr=sr, S=stft**2)
+        log_mel = librosa.logamplitude(mel)
+      
+        print 'Attempting to generate spectrogram image...'
+        #Create the spectrogram image
+        librosa.display.specshow(log_mel, sr=sr, hop_length=512)
+        plt.axis("normal") #axis limits auto scaled to make image sit well in plot box.
+        plt.margins(0,0) #remove margins
+        plt.gca().xaxis.set_major_locator(plt.NullLocator()) #remove x axis locator
+        plt.gca().yaxis.set_major_locator(plt.NullLocator()) #remove y axis locator
+
+        #Save the plotted figure (image) using "SortedVersion" dir structure
+        #the image can/will be copied later into a "DataVersion" dir set.
+        plt.savefig(savePath, dpi=100, frameon='false', bbox_inches="tight", pad_inches=0.0)
+        plt.clf()#Clear the current figure (possibly helps with speed)
         
-      s += 1 #Increment index
-      print 'Finished spectrogram('+ str(s) +'): '+ savePath
-      if s == 5 and TEST:
-        print 'Stopping spectrograms here, spect test done!'
-        break
-  #END tracks loop
+        s += 1 #Increment counter
+        print 'Finished spectrogram('+ str(s) +'): '+ savePath
+        if s == 5 and TEST:
+          print 'Stopping spectrograms here, spect test done!'
+          break
+      else:
+        #The spectrogram already exists, skip it
+        print savePath +' already exists, skipping...'
+        s += 1 #Keep counting though!
 
+  #END tracks loop
   return True
 #END doSpect Function
 
@@ -401,7 +417,7 @@ def doAudmage(trackL=None, saveDir=None):
       #User gave list of tracks to use.
       sTracks = trackL
   
-  print 'Attempting to generate and sort Audmages...\n'
+  print '\nAttempting to generate and sort Audmages...\n'
   a = 0 #Counter for audmages done
   for fpath, genre in sTracks:
     #Split up the path string and get 
@@ -418,67 +434,85 @@ def doAudmage(trackL=None, saveDir=None):
       print 'File: '+ fullFileName +' does not exist or is not accessible\n'
     else:
       #Create Audmages!
-      
-      #Try to load the audio file using librosa
-      try:
-        data, sr = librosa.load(fpath, mono=False) #mono(1channel)
-      except IOError:
-        print 'Unable to load: ' + fpath
-        #no s increment here because we didn't make the audmage!
-        continue #restart loop at next index, skip this file
-      
-      print 're-configuring audio data for image...'
-      #Divide each data value by the sampling rate...
-      #We need a way to include the sampling rate and
-      #this way seems most obvious...
-      newData = data/sr #numpy will divide by each value...
 
-      #Remap the audio values into pixel values
-      #Get min and max value in new audio data array
-      audLowValue = np.amin(newData) #min value in the audio data
-      audHighValue = np.amax(newData)#max value in the audio data
-      audDifValue = (audHighValue - audLowValue) #difference between max and min of audio data(oldRange)
-      pixDifValue = (255 - 0) #difference between max and miin of pixel values(newRange)
-      newData = remap(newData, audLowValue, audHighValue, 0, 255)
-        
-      #resize the matrix
-      tmp3 = newData.shape #Read current shape(2,?)
-      valueCount = (tmp3[0]*tmp3[1]) # 2*?
-
-      #split the data up into 3 or 4 image channels (RGB/A)
-      L = W = int((valueCount/3)**.5) + 2 #adding 2 to square root to ensure all elements fit (ex: 500x500 img~)
-      newData = np.sort(newData, axis=1)  #resort along the 1st axis (try sorting after reshape*)
-      #newData = np.flip(newData, axis=0) #flip high>low values (try after reshape*)
-      newData.resize(L, W, 3) #reshape/size the matrices to an image size 3-4 channels
-      #print newData.shape
-
-      #At this point we have averaged all values by the samplng rate
-      #and "remapped" the values to pixel value range and reshaped.
-      #All the values can now be treated as pixel values
-      #imshow(newData.astype(int))
-
-      #plt.imshow(newData)
-      plt.axis('normal')
-      #plt.show()
-
-      #Save the plotted figure (image) using "SortedVersion" dir structure
-      #the image can/will be copied later into a "DataVersion" dir set.
+      #Setup the save path
       if saveDir == None:
         savePath = 'sorted/audmage/'+ genre +'/'+ fileName + '.png'
       else:
-        savePath = saveDir +'/'+ fileName + '.png'
+        savePath = saveDir +'/'+ fileName + '.png'      
 
-      plt.imsave(savePath, newData, cmap='hot', format='png', dpi=100)
-      #Saving as an image lets us store the changes to the numpy matrix
-      #for later use, but this can be done on-the-fly without the image conversion.
-      #by just "normalizing/scaling" the data values with the sampling rate etc...
-      #im.save(newdata, 'sorted/audmages/'+ genre +'/'+ audFileName +'.png')
+      #Does the audmage already exist? Save time, skip it then
+      if not os.path.exists(savePath):      
+        #Try to load the audio file using librosa
+        print 'Attempting to load: '+ fpath
+        try:
+          data, sr = librosa.load(fpath, mono=False) #mono(1channel)
+        except IOError:
+          print 'Unable to load: ' + fpath
+          #no s increment here because we didn't make the audmage!
+          continue #restart loop at next index, skip this file
+
+        #Was the audio file somehow loaded yet has no data points?
+        if data.size == 0:
+          print 'Unable to load: '+ fpath +'\nFile was opened but there was no data! Corrupted?\nSkipping...'
+          continue #restart loop at next index, skip this file
         
-      a += 1 #Increment index
-      print 'Finished audmage('+ str(a) +'): '+ savePath
-      if a == 5 and TEST:
-        print 'Stopping audmages here, audmage test done!'
-        break
+        print 're-configuring audio data for image...'
+        #Divide each data value by the sampling rate...
+        #We need a way to include the sampling rate and
+        #this way seems most obvious...
+        newData = data/sr #numpy will divide by each value...
+
+        #Remap the audio values into pixel values
+        #Get min and max value in new audio data array
+        audLowValue = np.amin(newData) #min value in the audio data
+        audHighValue = np.amax(newData)#max value in the audio data
+        audDifValue = (audHighValue - audLowValue) #difference between max and min of audio data(oldRange)
+        pixDifValue = (255 - 0) #difference between max and miin of pixel values(newRange)
+        newData = remap(newData, audLowValue, audHighValue, 0, 255)
+          
+        #resize the matrix
+        tmp3 = newData.shape #Read current shape(2,?)
+        valueCount = (tmp3[0]*tmp3[1]) # 2*?
+
+        #split the data up into 3 or 4 image channels (RGB/A)
+        L = W = int((valueCount/3)**.5) + 2 #adding 2 to square root to ensure all elements fit (ex: 500x500 img~)
+        newData = np.sort(newData, axis=1)  #resort along the 1st axis (try sorting after reshape*)
+        #newData = np.flip(newData, axis=0) #flip high>low values (try after reshape*)
+        newData.resize(L, W, 3) #reshape/size the matrices to an image size 3-4 channels
+        #print newData.shape
+
+        #At this point we have averaged all values by the samplng rate
+        #and "remapped" the values to pixel value range and reshaped.
+        #All the values can now be treated as pixel values
+        #imshow(newData.astype(int))
+
+        #plt.imshow(newData)
+        plt.axis('normal')
+        #plt.show()
+
+        #Save the plotted figure (image) using "SortedVersion" dir structure
+        #the image can/will be copied later into a "DataVersion" dir set.
+        if saveDir == None:
+          savePath = 'sorted/audmage/'+ genre +'/'+ fileName + '.png'
+        else:
+          savePath = saveDir +'/'+ fileName + '.png'
+
+        plt.imsave(savePath, newData, cmap='hot', format='png', dpi=100)
+        #Saving as an image lets us store the changes to the numpy matrix
+        #for later use, but this can be done on-the-fly without the image conversion.
+        #by just "normalizing/scaling" the data values with the sampling rate etc...
+        #im.save(newdata, 'sorted/audmages/'+ genre +'/'+ audFileName +'.png')
+          
+        a += 1 #Increment index
+        print 'Finished audmage('+ str(a) +'): '+ savePath
+        if a == 5 and TEST:
+          print 'Stopping audmages here, audmage test done!'
+          break
+      else:
+        #The spectrogram already exists, skip it
+        print savePath +' already exists, skipping...'
+
   #END tracks loop
 
   return True
