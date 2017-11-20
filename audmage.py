@@ -232,7 +232,7 @@ def matchTracks():
           tmp = fpath.split('/')
           tmp2 = str(tmp[-1]).split('.')
           fullFileName = tmp[-1] # filename.mp3
-          fileName = tmp2[0]      # filename
+          fileName = str(int(tmp2[0])# filename
           fileExt = tmp2[1]       # .mp3/.png
           #Does this track name match the current csv row?
           if fileName == row[0] and row[32] == 'small':
@@ -250,8 +250,15 @@ def matchTracks():
       print 'Creating tracks.txt file to speed up future runs.'
       #Create new tracks list (tracks.txt)
       tracksFile = open('tracks.txt', 'a')
-      for fName, genre in Fg:
-        print >> tracksFile, fName, genre
+      for fpath, genre in TrackList:
+        #Split up the path string and get 
+        #the file name and extension
+        tmp = fpath.split('/')
+        tmp2 = str(tmp[-1]).split('.')
+        fullFileName = tmp[-1] # filename.mp3
+        fileName = str(int(tmp2[0])) # filename
+        fileExt = tmp2[1]       # .mp3/.png
+        print >> tracksFile, fileName, genre
       #End loop
       tracksFile.close()
     else:
@@ -350,7 +357,8 @@ def doSpect(trackL=None, saveDir=None):
       else:
         #The spectrogram already exists, skip it
         print savePath +' already exists, skipping...'
-        s += 1 #Keep counting though!
+        if not TEST:
+          s += 1 #Keep counting though!
 
   #END tracks loop
   return True
@@ -398,6 +406,7 @@ def remap(x, oMin, oMax, nMin, nMax):
 ##################
 # CREATE AUMAGES #
 ##################
+#Works in matplotlib v2.0.2
 def doAudmage(trackL=None, saveDir=None):
   #Do we have any track paths?
   if trackL == None and len(TrackList) < 1:
@@ -468,50 +477,40 @@ def doAudmage(trackL=None, saveDir=None):
         audLowValue = np.amin(newData) #min value in the audio data
         audHighValue = np.amax(newData)#max value in the audio data
         audDifValue = (audHighValue - audLowValue) #difference between max and min of audio data(oldRange)
-        pixDifValue = (255 - 0) #difference between max and miin of pixel values(newRange)
+        pixDifValue = (255 - 0) #difference between max and min of pixel values(newRange)
         newData = remap(newData, audLowValue, audHighValue, 0, 255)
-          
+
         #resize the matrix
         tmp3 = newData.shape #Read current shape(2,?)
         valueCount = (tmp3[0]*tmp3[1]) # 2*?
 
         #split the data up into 3 or 4 image channels (RGB/A)
-        L = W = int((valueCount/3)**.5) + 2 #adding 2 to square root to ensure all elements fit (ex: 500x500 img~)
+        L = W = int((valueCount/3)**0.5) + 2 #adding 2 to square root to ensure all elements fit (ex: 500x500 img~)
         newData = np.sort(newData, axis=1)  #resort along the 1st axis (try sorting after reshape*)
         #newData = np.flip(newData, axis=0) #flip high>low values (try after reshape*)
         newData.resize(L, W, 3) #reshape/size the matrices to an image size 3-4 channels
-        #print newData.shape
 
         #At this point we have averaged all values by the samplng rate
         #and "remapped" the values to pixel value range and reshaped.
         #All the values can now be treated as pixel values
-        #imshow(newData.astype(int))
 
-        #plt.imshow(newData)
         plt.axis('normal')
-        #plt.show()
-
-        #Save the plotted figure (image) using "SortedVersion" dir structure
-        #the image can/will be copied later into a "DataVersion" dir set.
-        if saveDir == None:
-          savePath = 'sorted/audmage/'+ genre +'/'+ fileName + '.png'
-        else:
-          savePath = saveDir +'/'+ fileName + '.png'
-
         plt.imsave(savePath, newData, cmap='hot', format='png', dpi=100)
         #Saving as an image lets us store the changes to the numpy matrix
         #for later use, but this can be done on-the-fly without the image conversion.
         #by just "normalizing/scaling" the data values with the sampling rate etc...
         #im.save(newdata, 'sorted/audmages/'+ genre +'/'+ audFileName +'.png')
-          
         a += 1 #Increment index
         print 'Finished audmage('+ str(a) +'): '+ savePath
+
         if a == 5 and TEST:
           print 'Stopping audmages here, audmage test done!'
           break
       else:
         #The spectrogram already exists, skip it
         print savePath +' already exists, skipping...'
+        if not TEST:
+          a += 1 #Count skips too!
 
   #END tracks loop
 
