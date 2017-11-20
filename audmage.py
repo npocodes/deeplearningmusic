@@ -232,8 +232,8 @@ def matchTracks():
           tmp = fpath.split('/')
           tmp2 = str(tmp[-1]).split('.')
           fullFileName = tmp[-1] # filename.mp3
-          fileName = str(int(tmp2[0])# filename
-          fileExt = tmp2[1]       # .mp3/.png
+          fileName = str(int(tmp2[0]))# filename
+          fileExt = tmp2[1] # .mp3/.png
           #Does this track name match the current csv row?
           if fileName == row[0] and row[32] == 'small':
             doDirs(str(row[40])) #Create genre directories
@@ -482,7 +482,13 @@ def doAudmage(trackL=None, saveDir=None):
 
         #resize the matrix
         tmp3 = newData.shape #Read current shape(2,?)
-        valueCount = (tmp3[0]*tmp3[1]) # 2*?
+        #print 'Shape ', tmp3
+        try:
+          valueCount = (tmp3[0]*tmp3[1]) # 2*?
+        except IndexError:
+          valueCount = (tmp3[0] * 2)#Must be mono file(copy same data to 2nd channel)
+          newData = np.vstack((newData,newData))
+          #print 'OldShape: ', str(tmp3), 'NewShape: ', str(newData.shape)
 
         #split the data up into 3 or 4 image channels (RGB/A)
         L = W = int((valueCount/3)**0.5) + 2 #adding 2 to square root to ensure all elements fit (ex: 500x500 img~)
