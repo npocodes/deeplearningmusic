@@ -11,7 +11,9 @@ The tracks.csv file contained with the metadata is required for genre matching.<
 Attempts to read genre from the audio file gave inaccurate results (poor tagging).
 <br><br>
 ### Spectrogram-Small Set Download: https://iu.box.com/s/3efke32ap8rr5ozh9swvs314qy3dcyb0<br>
-### Spectrogram-Med Set Download: https://iu.app.box.com/s/tocv41kaewg2dbolzvo9554jgks1w6t7
+8 Balanced Genres, ~8000 Images
+### Spectrogram-Med Set Download: https://iu.app.box.com/s/tocv41kaewg2dbolzvo9554jgks1w6t7<br>
+Unbalanced
 <br><br>
 ### Audmage-Small Set Download: https://iu.box.com/s/43fai371ag35u3vxm5oytu3vg4p92b8y<br>
 Audmages are an alternative to spectrograms that our group is experimenting with.
