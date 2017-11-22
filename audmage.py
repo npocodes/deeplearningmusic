@@ -476,8 +476,8 @@ def doAudmage(trackL=None, saveDir=None):
         #Get min and max value in new audio data array
         audLowValue = np.amin(newData) #min value in the audio data
         audHighValue = np.amax(newData)#max value in the audio data
-        audDifValue = (audHighValue - audLowValue) #difference between max and min of audio data(oldRange)
-        pixDifValue = (255 - 0) #difference between max and min of pixel values(newRange)
+        #audDifValue = (audHighValue - audLowValue) #difference between max and min of audio data(oldRange)
+        #pixDifValue = (255 - 0) #difference between max and min of pixel values(newRange)
         newData = remap(newData, audLowValue, audHighValue, 0, 255)
 
         #resize the matrix
@@ -597,43 +597,14 @@ def generateSet(p1,p2,p3):
     p2tracks = tracks[int(gCount[i]*p1):int((gCount[i]*p1)+(gCount[i]*p2))] #take p2 percent of these tracks
     p3tracks = tracks[int((gCount[i]*p1)+(gCount[i]*p2)):] #all the rest... p3 percent of these tracks..
 
-    print 'There are '+ str(len(p1tracks)) +' '+ genres[i] +' tracks for test set.'
-    print 'There are '+ str(len(p2tracks)) +' '+ genres[i] +' tracks for train set.'
+    print 'There are '+ str(len(p1tracks)) +' '+ genres[i] +' tracks for train set.'
+    print 'There are '+ str(len(p2tracks)) +' '+ genres[i] +' tracks for test set.'
     print 'There are '+ str(len(p3tracks)) +' '+ genres[i] +' tracks for validate set.'
     print 'Sorting.. please wait..\n'
     #copy the p1 files to the dataset test directory
     for track in p1tracks:
       doDirs(genres[i])#make sure the dir struct is in place
       #print 'Test file: ' + track
-      trackPath = 'sorted/'+ item +'/'+ genres[i] +'/'+ track 
-      newPath = 'dataset/'+ item +'/test/'+ track
-      try:
-        copyfile(trackPath, newPath)
-      except IOError:
-        print 'Unable to copy file: '+ trackPath
-        print 'To new location: '+ newPath +'\nskipping...'
-      
-      if item == 'spect' and Audmage:
-        trackPath = 'sorted/audmage/'+ genres[i] +'/'+ track
-        newPath = 'dataset/audmage/test/'+ track
-        try:
-          copyfile(trackPath, newPath)
-        except IOError:
-          print 'Unable to copy file: '+ trackPath
-          print 'To new location: '+ newPath +'\nskipping...'
-
-      if item == 'audmage' and Spect:
-        trackPath = 'sorted/spect/'+ genres[i] +'/'+ track 
-        newPath = 'dataset/spect/test/'+ track
-        try:
-          copyfile(trackPath, newPath)
-        except IOError:
-          print 'Unable to copy file: '+ trackPath
-          print 'To new location: '+ newPath +'\nskipping...'
-    
-    #copy the p2 files to the dataset train directory
-    for track in p2tracks:
-      #print 'Train file: ' + track
       trackPath = 'sorted/'+ item +'/'+ genres[i] +'/'+ track 
       newPath = 'dataset/'+ item +'/train/'+ track
       try:
@@ -654,6 +625,35 @@ def generateSet(p1,p2,p3):
       if item == 'audmage' and Spect:
         trackPath = 'sorted/spect/'+ genres[i] +'/'+ track 
         newPath = 'dataset/spect/train/'+ track
+        try:
+          copyfile(trackPath, newPath)
+        except IOError:
+          print 'Unable to copy file: '+ trackPath
+          print 'To new location: '+ newPath +'\nskipping...'
+    
+    #copy the p2 files to the dataset train directory
+    for track in p2tracks:
+      #print 'Train file: ' + track
+      trackPath = 'sorted/'+ item +'/'+ genres[i] +'/'+ track 
+      newPath = 'dataset/'+ item +'/test/'+ track
+      try:
+        copyfile(trackPath, newPath)
+      except IOError:
+        print 'Unable to copy file: '+ trackPath
+        print 'To new location: '+ newPath +'\nskipping...'
+      
+      if item == 'spect' and Audmage:
+        trackPath = 'sorted/audmage/'+ genres[i] +'/'+ track
+        newPath = 'dataset/audmage/test/'+ track
+        try:
+          copyfile(trackPath, newPath)
+        except IOError:
+          print 'Unable to copy file: '+ trackPath
+          print 'To new location: '+ newPath +'\nskipping...'
+
+      if item == 'audmage' and Spect:
+        trackPath = 'sorted/spect/'+ genres[i] +'/'+ track 
+        newPath = 'dataset/spect/test/'+ track
         try:
           copyfile(trackPath, newPath)
         except IOError:
@@ -893,7 +893,7 @@ if len(sys.argv) > 1:
       doAudmage()
       
   elif GDATA:
-    #Not working with audio files!
+    #We are Not working with audio files!
     #Not Creating or sorting!
     generateSet(.8, .1, .1)#Generate a new dataset
 
