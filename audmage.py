@@ -120,10 +120,15 @@ def doSearch(dirPath):
 def doDirs(genre):
   
   #Sorted version
+  # 'sorted/audio/<genre>/<image>'
+  # 'sorted/spect/<genre>/<image>'
+  # 'sorted/audmage/<genre>/<image>'
   if not os.path.isdir("sorted"):
     os.mkdir("sorted")
   
   #Data version?
+  # 'dataset/spect/{train, test, validate}/<genre>/<image>'
+  # 'dataset/audmage/{train, test, validate}/<genre>/<image>'
   if GDATA:
     if not os.path.isdir("dataset"):
       os.mkdir("dataset")
@@ -147,15 +152,25 @@ def doDirs(genre):
       os.mkdir("sorted/spect/"+ genre)
     
     #Create data version?
+    # 'dataset/spect/train/<genre>'
     if GDATA:
       if not os.path.isdir("dataset/spect"):
         os.mkdir("dataset/spect")
+
       if not os.path.isdir("dataset/spect/train"):
         os.mkdir("dataset/spect/train")
+      if not os.path.isdir("dataset/spect/train/"+ genre):
+        os.mkdir("dataset/spect/train/"+ genre)
+
       if not os.path.isdir("dataset/spect/test"):
         os.mkdir("dataset/spect/test")
+      if not os.path.isdir("dataset/spect/test/"+ genre):
+        os.mkdir("dataset/spect/test/"+ genre)
+
       if not os.path.isdir("dataset/spect/validate"):
         os.mkdir("dataset/spect/validate")
+      if not os.path.isdir("dataset/spect/validate/"+ genre):
+        os.mkdir("dataset/spect/test/validate/"+ genre)
 
   if Audmage:
     #Create audmage dir (sorted ver)
@@ -166,15 +181,25 @@ def doDirs(genre):
       os.mkdir("sorted/audmage/"+ genre)
     
     #Create data version?
+    # 'dataset/audmage/train/<genre>'
     if GDATA:
       if not os.path.isdir("dataset/audmage"):
         os.mkdir("dataset/audmage")
+
       if not os.path.isdir("dataset/audmage/train"):
         os.mkdir("dataset/audmage/train")
+      if not os.path.isdir("dataset/audmage/train/"+ genre):
+        os.mkdir("dataset/audmage/train/"+ genre)
+
       if not os.path.isdir("dataset/audmage/test"):
         os.mkdir("dataset/audmage/test")
+      if not os.path.isdir("dataset/audmage/test/"+ genre):
+        os.mkdir("dataset/audmage/test/"+ genre)
+
       if not os.path.isdir("dataset/audmage/validate"):
         os.mkdir("dataset/audmage/validate")
+      if not os.path.isdir("dataset/audmage/validate/"+ genre):
+        os.mkdir("dataset/audmage/validate/"+ genre)
 
   return True
 #End doDirs function
@@ -606,7 +631,7 @@ def generateSet(p1,p2,p3):
       doDirs(genres[i])#make sure the dir struct is in place
       #print 'Test file: ' + track
       trackPath = 'sorted/'+ item +'/'+ genres[i] +'/'+ track 
-      newPath = 'dataset/'+ item +'/train/'+ track
+      newPath = 'dataset/'+ item +'/train/'+ genres[i] +'/'+ track
       try:
         copyfile(trackPath, newPath)
       except IOError:
@@ -615,7 +640,7 @@ def generateSet(p1,p2,p3):
       
       if item == 'spect' and Audmage:
         trackPath = 'sorted/audmage/'+ genres[i] +'/'+ track
-        newPath = 'dataset/audmage/train/'+ track
+        newPath = 'dataset/audmage/train/'+ genres[i] +'/'+ track
         try:
           copyfile(trackPath, newPath)
         except IOError:
@@ -624,7 +649,7 @@ def generateSet(p1,p2,p3):
 
       if item == 'audmage' and Spect:
         trackPath = 'sorted/spect/'+ genres[i] +'/'+ track 
-        newPath = 'dataset/spect/train/'+ track
+        newPath = 'dataset/spect/train/'+genres[i] +'/'+ track
         try:
           copyfile(trackPath, newPath)
         except IOError:
@@ -635,7 +660,7 @@ def generateSet(p1,p2,p3):
     for track in p2tracks:
       #print 'Train file: ' + track
       trackPath = 'sorted/'+ item +'/'+ genres[i] +'/'+ track 
-      newPath = 'dataset/'+ item +'/test/'+ track
+      newPath = 'dataset/'+ item +'/test/'+ genres[i] +'/'+ track
       try:
         copyfile(trackPath, newPath)
       except IOError:
@@ -644,7 +669,7 @@ def generateSet(p1,p2,p3):
       
       if item == 'spect' and Audmage:
         trackPath = 'sorted/audmage/'+ genres[i] +'/'+ track
-        newPath = 'dataset/audmage/test/'+ track
+        newPath = 'dataset/audmage/test/'+ genres[i] +'/'+ track
         try:
           copyfile(trackPath, newPath)
         except IOError:
@@ -653,7 +678,7 @@ def generateSet(p1,p2,p3):
 
       if item == 'audmage' and Spect:
         trackPath = 'sorted/spect/'+ genres[i] +'/'+ track 
-        newPath = 'dataset/spect/test/'+ track
+        newPath = 'dataset/spect/test/'+ genres[i] +'/'+ track
         try:
           copyfile(trackPath, newPath)
         except IOError:
@@ -664,7 +689,7 @@ def generateSet(p1,p2,p3):
     for track in p2tracks:
       #print 'Validate file: ' + track
       trackPath = 'sorted/'+ item +'/'+ genres[i] +'/'+ track 
-      newPath = 'dataset/'+ item +'/validate/'+ track
+      newPath = 'dataset/'+ item +'/validate/'+ genres[i] +'/'+ track
       try:
         copyfile(trackPath, newPath)
       except IOError:
@@ -673,7 +698,7 @@ def generateSet(p1,p2,p3):
       
       if item == 'spect' and Audmage:
         trackPath = 'sorted/audmage/'+ genres[i] +'/'+ track
-        newPath = 'dataset/audmage/validate/'+ track
+        newPath = 'dataset/audmage/validate/'+ genres[i] +'/'+ track
         try:
           copyfile(trackPath, newPath)
         except IOError:
@@ -682,7 +707,7 @@ def generateSet(p1,p2,p3):
 
       if item == 'audmage' and Spect:
         trackPath = 'sorted/spect/'+ genres[i] +'/'+ track 
-        newPath = 'dataset/spect/validate/'+ track
+        newPath = 'dataset/spect/validate/'+ genres[i] +'/'+ track
         try:
           copyfile(trackPath, newPath)
         except IOError:
