@@ -14,11 +14,11 @@
       #Spect/<genre>/<file>
       #Audmage/<genre>/<file>
 
-    #DataVersion - files are not sorted into genre 
-    #(the classifiaction program should do that, if it can!)
+    #DataVersion - files are sorted into 3 subsets train, test
+    #and validate. In each of those by genre. (must be sorted)
       # -No audio version...
-      #Spect/{train, test, validate}/<randomGenreMusicFile>
-      #Audmage/{train, test, validate}/<randomGenreMusicFile>
+      #dataset/spect/{train, test, validate}/<genre>/<spectrogram>
+      #dataset/audmage/{train, test, validate}/<genre>/<audmage>
 
 # Command inputs: 
 #   1-  <path to data> : required, audioDir or imgDir (if sorting images)
@@ -37,7 +37,8 @@
 #
 # ex3: ~$ python audmage.py fma_small create spect dataset
 # creates spectrogram images and sorts them, then uses 
-# them to create a dataset
+# them to create a dataset.
+#
 #
 # ex4: ~$ python audmage.py fma_small
 # default, no options does all options!
@@ -891,14 +892,17 @@ if __name__ == '__main__':
         if Spect:
           #Do Create Spectrograms
           p = Pool(processes=numWorkers) #set number of worker processes
-          p.map(doSpect, TrackList)#Run doSpect on each element of TrackList
+          sresult = p.map(doSpect, TrackList)#Run doSpect on each element of TrackList
           #ie: Split TrackList between NumWorkers and run doSpect on each element
+          print "Finished "+ str(sum(map(int, sresult))) + " spectrograms."
+                             #^Calculates number of true function returns
 
         if Audmage:
           #Do Create Audmages
           p = Pool(processes=numWorkers) #set number of worker processes
-          p.map(doAudmage, TrackList)#Run doAudmage on each element of TrackList
+          aresult = p.map(doAudmage, TrackList)#Run doAudmage on each element of TrackList
           #ie: Split TrackList between NumWorkers and run doAudmage on each element
+          print "Finished "+ str(sum(map(int, aresult))) + " audmages."
 
       if GDATA:
         #Do generate dataset
@@ -924,7 +928,6 @@ if __name__ == '__main__':
         sresult = p.map(doSpect, TrackList)#Run doSpect on each element of TrackList
         #ie: Split TrackList between NumWorkers and run doSpect on each element
         print "Finished "+ str(sum(map(int, sresult))) + " spectrograms."
-        print sresult
 
       if Audmage:
         #Do Create Audmages
