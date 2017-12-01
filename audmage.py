@@ -78,10 +78,12 @@ TrackList = []  #List of tuples (filePath, genre)
 Meta = []       #List of meta data (from csv file)
 MetaT= {}       #Dictionary of track names and matching genres
                 #Indexed by track name.
-
+                    
 NumNodes = 1    #Number of CPU nodes you will be using(non-zero).
 NumCores = 32   #Number of CPU cores per node you will be using(non-zero).
                 #Number of workers(sub-processes) = NumNodes * NumCores
+                #(16 cores on the GPUs)
+
 S = 0           #Number of completed images(per given instance)
                 #ie: 5*32Workers = 160 images done. (test)
 
@@ -177,7 +179,7 @@ def doDirs(genre):
       if not os.path.isdir("dataset/spect/validate"):
         os.mkdir("dataset/spect/validate")
       if not os.path.isdir("dataset/spect/validate/"+ genre):
-        os.mkdir("dataset/spect/test/validate/"+ genre)
+        os.mkdir("dataset/spect/validate/"+ genre)
 
   if Audmage:
     #Create audmage dir (sorted ver)
