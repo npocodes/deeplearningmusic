@@ -65,13 +65,14 @@ import csv
 ###########
 # GLOBALS #
 ###########
-Audio = False   #Flag that we want to work with Audio Files
-Spect = False   #Flag that we want to work with Spectrograms
-Audmage = False #Flag that we want to work with Audmages
-GDATA = False   #Flag that we want to generate a dataset
-CREATE = False  #Flag to specify creating, not sorting, images
-COPY = False    #Flag to specify copying or moving files when sorting.
-TEST = False    #Flag to stop creating images after just 5, for testing.
+Audio = False   #If True the audio files will be sorted.
+Spect = False   #If True, we are working with spectrograms.
+Audmage = False #If True, we are working with audmages.
+GDATA = False   #If True, we are going to generate a dataset.
+CREATE = False  #If True, we are going to create images.
+VERBOSE = False #If True, we will print out commentary.
+COPY = False    #If True, files are copied when sorting.
+TEST = False    #If True, stop creating images after just 5.
 
 PathList = []   #List of file paths(audio/image)
 TrackList = []  #List of tuples (filePath, genre)
@@ -80,7 +81,7 @@ MetaT= {}       #Dictionary of track names and matching genres
                 #Indexed by track name.
                     
 NumNodes = 1    #Number of CPU nodes you will be using(non-zero).
-NumCores = 32   #Number of CPU cores per node you will be using(non-zero).
+NumCores = 4   #Number of CPU cores per node you will be using(non-zero).
                 #Number of workers(sub-processes) = NumNodes * NumCores
                 #(16 cores on the GPUs)
 
@@ -107,7 +108,8 @@ def doSearch(dirPath):
     for item in itemList:
       doSearch(dirPath +'/'+ item)
   else:
-    print 'Found audio file: '+ dirPath
+    if VERBOSE:
+      print 'Found audio file: '+ dirPath
     #dirPath is a file, if looking for audio
     #find only audio, else find only images
     #this avoids picking up files we don't want
@@ -231,7 +233,8 @@ def matchTracks():
     #Before we start any loops.. where are we finding the genre data?
     #Is tracks.txt available????
     if MetaT:
-      print 'Using tracks.txt for genre matching.'
+      if VERBOSE:
+        print 'Using tracks.txt for genre matching. (You wanna go fast!)'
       #Loop each path in pathList
       for fpath in PathList:
         #Split up the path string and get 
@@ -243,8 +246,14 @@ def matchTracks():
         fileExt = tmp2[1]             # .mp3/.png
         
         #Get the genre that matches this filename
-        tgenre = MetaT[fileName]
-          
+        try:
+          tgenre = MetaT[fileName]
+        except KeyError:
+          print 'Missing tracks.txt entry for: '+ str(fileName)
+          print 'Please remove tracks.txt so it can be regenerated for this set.'
+          print '(Requires tracks.csv)'
+          sys.exit()
+
         print 'File: '+ fullFileName +', Genre: '+ tgenre
         #Create genre directories (and or dataset dirs)
         #If they don't already exist
@@ -256,8 +265,14 @@ def matchTracks():
     elif Meta:
       #using tracks.csv (Modified from Joseph Kotva's Code)
       print 'Using tracks.csv for genre matching. Warning: Slower than using tracks.txt'
-      print 'A new tracks.txt will be created during this run for faster future runs.'
+      print 'Please wait.. Searching csv is slow....'
+      if VERBOSE:
+        print 'I\'ll make you a tracks.txt file after we search the csv file this one time.'
+        print 'That way we can use it when making the images.'
       #Loop Meta data
+      p = 0
+      f = len(PathList)
+      #We will iterate csv data only one time.
       for row in Meta:
         #Loop PathList
         for fpath in PathList:
@@ -269,19 +284,59 @@ def matchTracks():
           fileName = str(int(tmp2[0]))# filename
           fileExt = tmp2[1] # .mp3/.png
           #Does this track name match the current csv row?
-          if fileName == row[0] and row[32] == 'small':
-            doDirs(str(row[40])) #Create genre directories
-            #add trackPath and genre as tuple to TrackList
-            TrackList.append([fpath, str(row[40])])
-            PathList.remove(fpath) #more Speed SCOTTY!!
-            break #cur meta row matched move on, more Speed SCOTTY!!
+          if fileName == row[0]:
+            if row[32] == 'small' or row[32] == 'medium':
+              #ensure proper formatting for dirName for the genre
+              genre = str(row[40]).replace(' ', '').replace('/', '-').replace(',', '-')
+              if VERBOSE:
+                print 'Match Found['+ genre +']: '+ fpath
+
+              doDirs(genre) #Create genre directories
+              #add trackPath and genre as tuple to TrackList
+              TrackList.append([fpath, genre])
+              PathList.remove(fpath) #more Speed SCOTTY!!
+              break #cur meta row matched move on, more Speed SCOTTY!!
         #END PathList Loop
+
+        #Keep our user company while they wait...lol
+        if not VERBOSE:
+          if p == int(.99*f):
+            print 'Looks..like..we-made-it!!!!!..!!!!...: 99%'
+            print 'Still trying to find:'
+            print PathList
+          elif p == int(.98*f):
+            print 'And..............: 98%'
+          elif p == int(.94*f):
+            print 'Hey! Don\'t touch that... focus man!!: 94%'
+          elif p == int(.86*f):
+            print '\nStop it!\n'
+          elif p == int(.83*f):
+            print 'No no no, I said... ^, so forget it right now. 83%'
+          elif p == int(.75*f):
+            print 'I change my mind, let\'s not imagine it. 75%'
+          elif p == int(.70*f):
+            print 'Imagine how long creating images would take if you'
+            print 'had to loop the csv file for every image...: 70%'
+          elif p == int(f/2):
+            print 'Keep calm, it\'s almost over now!'
+            print 'The speed will be much faster after this. 50%'
+          elif p == int(.25*f):
+            print 'We have to do this to get accurate genre matches for our files...sorry: 25%.'
+        p += 1
+        
+        #Did we find them all?  
         if len(PathList) == 0:
           break #I've given her all she's got captain!!
       #End Meta Loop
-      
+      if VERBOSE:
+        print '\npheww(cough)!'
+        print 'Glad we won\'t have to do that again...'
+        print 'Wait, you are not planning on using more data than this are you?'
+        print 'Sigh... moving on..\n'
+
       #Next time we'll be ready fer em!!
-      print 'Creating tracks.txt file to speed up future runs.'
+      if VERBOSE:
+        print 'Creating tracks.txt file to speed up future runs with this set.'
       #Create new tracks list (tracks.txt)
       tracksFile = open('tracks.txt', 'a')
       for fpath, genre in TrackList:
@@ -403,10 +458,10 @@ def remap(x, oMin, oMax, nMin, nMax):
   #Check range
   if oMin == oMax:
     print 'Warning: Zero input range'
-    return None
+    return x
   if nMin == nMax:
     print 'Warning Zero output range'
-    return None
+    return x
 
   #Check reversed input range
   reverseInput = False
@@ -491,20 +546,22 @@ def doAudmage(trackL=None, saveDir=None):
       if data.size == 0:
         print 'Unable to load: '+ fpath +'\nFile was opened but there was no data! Corrupted?\nSkipping...'
         return False #skip this file
-      
+
       #print 're-configuring audio data for image...'
       #Divide each data value by the sampling rate...
       #We need a way to include the sampling rate and
       #this way seems most obvious...
-      newData = data/sr #numpy will divide by each value...
-
-      #Remap the audio values into pixel values
+      if sr != 0:
+        data = data/sr #numpy will divide by each value...
+      
       #Get min and max value in new audio data array
-      audLowValue = np.amin(newData) #min value in the audio data
-      audHighValue = np.amax(newData)#max value in the audio data
-      #audDifValue = (audHighValue - audLowValue) #difference between max and min of audio data(oldRange)
-      #pixDifValue = (255 - 0) #difference between max and min of pixel values(newRange)
-      newData = remap(newData, audLowValue, audHighValue, 0, 255)
+      audLowValue = np.amin(data) #min value in the audio data
+      audHighValue = np.amax(data)#max value in the audio data
+      #Remap the audio values into pixel values
+      newData = remap(data, audLowValue, audHighValue, 0, 255)
+      if np.array_equal(newData, data):
+        print 'Unable to remap: '+ fpath +'\nFile was opened but the data is all empty or the same! Corrupted?\nSkipping...'
+        return False
 
       #resize the matrix
       tmp3 = newData.shape #Read current shape(2,?)
@@ -745,8 +802,12 @@ def audioSort():
       if not os.path.exists("sorted/audio/"+ genre +"/"+ fullFileName):
         #Move or Copy?
         if COPY:
+          if VERBOSE:
+            print 'Copying '+ fullFileName +' to: sorted/audio/'+ genre +"/"+ fullFileName
           copyfile(fpath, "sorted/audio/"+ genre +"/"+ fullFileName)
         else:
+          if VERBOSE:
+            print 'Moving '+ fullFileName +' to: sorted/audio/'+ genre +"/"+ fullFileName
           move(fpath, "sorted/audio/"+ genre +"/"+ fullFileName)
       else:
         print 'Audio file: '+ fullFileName  +' is already there, skipping...'
@@ -806,7 +867,7 @@ if __name__ == '__main__':
       tmp2 = row.split(' ')
       MetaT[tmp2[0]] = tmp2[1]
   except IOError:
-    print 'Could not read tracks.txt'
+    print 'Could not find tracks.txt'
     #Try to open and read the tracks.csv file
     #This file is slower do to extra looping.
     try:
@@ -834,31 +895,34 @@ if __name__ == '__main__':
       #split up command arguments taking all arguments after arg 1
       #and loop through each option to check which it is.
       for option in sys.argv[2:]:
-        if option.lower() == 'audio':
+        if option.lower() == 'audio' or option.lower() == '-a':
           #User wants to work with audio files
           Audio = True
-        elif option.lower() == 'spect' or option == 'spectrogram':
+        elif option.lower() == 'spect' or option.lower() == 'spectrogram' or option.lower() == '-s':
           #User wants to work with spectrograms
           #Warning can't sort audio and images at same time!
           #If audio was set true as well, then audio is sorted
           #and spectrograms are created/sorted.
           Spect = True
-        elif option.lower() == 'audmage':
+        elif option.lower() == 'audmage' or option.lower() == '-m':
           #User wants to work with audmages
           #Warning can't sort audio and images at same time!
           #If audio was set true as well, then audio is sorted
           #and spectrograms are created/sorted.
           Audmage = True
-        elif option.lower() == 'dataset':
+        elif option.lower() == 'dataset' or option.lower() == '-d':
           #User wants to create a dataset if possible
           GDATA = True
-        elif option.lower() == 'create':
+        elif option.lower() == 'create' or option.lower() == '-c':
           #User wants to create spects and/or audmages
           CREATE = True
-        elif option.lower() == 'copy':
+        elif option.lower() == 'verbose' or option.lower() == '-v':
+          #User wants us to talk about whats happening.
+          VERBOSE = True
+        elif option.lower() == 'copy' or option.lower() == '-p':
           #User wishes to copy when sorting
           COPY = True
-        elif option.lower() == 'test':
+        elif option.lower() == 'test' or option.lower('-t'):
           #User wishes to copy when sorting
           TEST = True
         else:
@@ -882,6 +946,7 @@ if __name__ == '__main__':
       if not PathList:
         print 'Unable to locate audio files in specified directory: '+ sys.argv[1]
         sys.exit()
+      print 'Found '+ str(len(PathList)) +' Files'
 
       matchTracks() #Match tracks with genres
       audioSort()   #Sort the audio tracks in genres
@@ -917,6 +982,8 @@ if __name__ == '__main__':
       if not PathList:
         print 'Unable to locate audio files in specified directory: '+ sys.argv[1]
         sys.exit()
+      #How many were found?
+      print 'Found '+ str(len(PathList)) +' Files'
 
       #Figure out how many worker processes to spawn
       NumWorkers = NumNodes * NumCores
@@ -948,7 +1015,7 @@ if __name__ == '__main__':
       #Not creating images
       #Not generating datasets
       #Must be sorting images!
-      doSearch()#Find all the images files in the directory
+      doSearch(sys.argv[1])#Find all the images files in the directory
       if not PathList:
         print 'Unable to locate image files in specified directory: '+ sys.argv[1]
         sys.exit()
