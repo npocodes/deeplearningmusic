@@ -13,7 +13,7 @@ Attempts to read genre from the audio file gave inaccurate results (poor tagging
 ### Spectrogram-Small Set Download: https://iu.box.com/s/3efke32ap8rr5ozh9swvs314qy3dcyb0<br>
 8 Balanced Genres, ~8000 Images
 ### Spectrogram-Med Set Download: https://iu.app.box.com/s/tocv41kaewg2dbolzvo9554jgks1w6t7<br>
-8 Parent Genres, 16 Sub-Genres, Unbalanced
+8 Genres Unbalanced, 22,942 Images 
 <br><br>
 ### Audmage-Small Set Download: https://iu.box.com/s/43fai371ag35u3vxm5oytu3vg4p92b8y<br>
 Audmages are an alternative to spectrograms that our group is experimenting with.<br>
